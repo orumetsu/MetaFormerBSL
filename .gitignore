@@ -151,5 +151,5 @@ dmypy.json
 /MetaFormerBSLvenv
 
 #vscode
-.vs/
-.vscode/
+/.vs
+/.vscode
