@@ -6,9 +6,12 @@ from timm.models.helpers import load_pretrained
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 import numpy as np
+
 from .MBConv import MBConvBlock
 from .MHSA import MHSABlock,Mlp
 from .meta_encoder import ResNormLayer
+
+
 def _cfg(url='', **kwargs):
     return {
         'url': url,
@@ -19,11 +22,13 @@ def _cfg(url='', **kwargs):
         **kwargs
     }
 
+
 default_cfgs = {
     'MetaFG_0': _cfg(),
     'MetaFG_1': _cfg(),
     'MetaFG_2': _cfg(),
 }
+
 
 def make_blocks(stage_index,depths,embed_dims,img_size,dpr,extra_token_num=1,num_heads=8,mlp_ratio=4.,stage_type='conv'):
     stage_name = f'stage_{stage_index}'
@@ -131,6 +136,7 @@ class MetaFG_Meta(nn.Module):
         trunc_normal_(self.cls_token_1, std=.02)
         trunc_normal_(self.cls_token_2, std=.02)
         self.apply(self._init_weights)
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
@@ -232,6 +238,7 @@ class MetaFG_Meta(nn.Module):
         x = self.head(x)
         return x 
 
+
 @register_model
 def MetaFG_meta_0(pretrained=False, **kwargs):
     model = MetaFG_Meta(conv_embed_dims = [64,96,192],attn_embed_dims=[384,768],
@@ -241,6 +248,8 @@ def MetaFG_meta_0(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 @register_model
 def MetaFG_meta_1(pretrained=False, **kwargs):
     model = MetaFG_Meta(conv_embed_dims = [64,96,192],attn_embed_dims=[384,768],
@@ -250,6 +259,8 @@ def MetaFG_meta_1(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 @register_model
 def MetaFG_meta_2(pretrained=False, **kwargs):
     model = MetaFG_Meta(conv_embed_dims = [128,128,256],attn_embed_dims=[512,1024],
@@ -259,6 +270,8 @@ def MetaFG_meta_2(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 if __name__ == "__main__":
     x = torch.randn([2, 3, 224, 224])
     meta = torch.randn([2,7])

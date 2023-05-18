@@ -3,15 +3,11 @@ import torch
 from PIL import Image
 from config import get_inference_config
 from models import build_model
+from torch import amp
 from torch.autograd import Variable
 from torchvision.transforms import transforms
 import numpy as np
 import argparse
-
-try:
-    from apex import amp
-except ImportError:
-    amp = None
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)

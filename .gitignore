@@ -143,3 +143,9 @@ dmypy.json
 /nabirds
 /aircraft
 /datasets
+
+# installers
+/installers
+
+# venv
+/MetaFormerBSLvenv

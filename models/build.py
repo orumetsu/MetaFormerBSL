@@ -1,6 +1,8 @@
 from timm.models import create_model  
 from .MetaFG import *
 from .MetaFG_meta import *
+
+
 def build_model(config):
     model_type = config.MODEL.TYPE
     if model_type == 'MetaFG':
@@ -15,6 +17,6 @@ def build_model(config):
                 meta_dims=config.MODEL.META_DIMS
         )
     else:
-        raise NotImplementedError(f"Unkown model: {model_type}")
+        raise NotImplementedError(f"Unknown model: {model_type}")
 
     return model

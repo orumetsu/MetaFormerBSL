@@ -7,7 +7,8 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
-
+from torch import amp
+from torch.utils.tensorboard import SummaryWriter
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from timm.utils import accuracy, AverageMeter
 
@@ -17,13 +18,7 @@ from data import build_loader
 from lr_scheduler import build_scheduler
 from optimizer import build_optimizer
 from logger import create_logger
-from utils import load_checkpoint, save_checkpoint, get_grad_norm, auto_resume_helper, reduce_tensor,load_pretained
-from torch.utils.tensorboard import SummaryWriter
-try:
-    # noinspection PyUnresolvedReferences
-    from apex import amp
-except ImportError:
-    amp = None
+from utils import load_checkpoint, save_checkpoint, get_grad_norm, auto_resume_helper, reduce_tensor, load_pretrained
 
 
 def parse_option():
@@ -31,7 +26,7 @@ def parse_option():
     parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='path to config file', )
     parser.add_argument(
         "--opts",
-        help="Modify config options by adding 'KEY VALUE' pairs. ",
+        help="Modify config options by adding 'KEY VALUE' pairs.",
         default=None,
         nargs='+',
     )
@@ -122,7 +117,7 @@ def main(config):
 
     max_accuracy = 0.0
     if config.MODEL.PRETRAINED:
-        load_pretained(config,model_without_ddp,logger)
+        load_pretrained(config,model_without_ddp,logger)
         if config.EVAL_MODE:
             acc1, acc5, loss = validate(config, data_loader_val, model)
             logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.1f}%")
@@ -177,6 +172,8 @@ def main(config):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     logger.info('Training time {}'.format(total_time_str))
+
+
 def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer, epoch, mixup_fn, lr_scheduler,tb_logger=None):
     model.train()
     if hasattr(model.module,'cur_epoch'):
@@ -270,6 +267,8 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
                 f'mem {memory_used:.0f}MB')
     epoch_time = time.time() - start
     logger.info(f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}")
+
+
 @torch.no_grad()
 def validate(config, data_loader, model, mask_meta=False):
     criterion = torch.nn.CrossEntropyLoss()

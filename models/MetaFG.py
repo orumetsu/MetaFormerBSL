@@ -6,8 +6,11 @@ from timm.models.helpers import load_pretrained
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 import numpy as np
+
 from .MBConv import MBConvBlock
 from .MHSA import MHSABlock,Mlp
+
+
 def _cfg(url='', **kwargs):
     return {
         'url': url,
@@ -18,11 +21,13 @@ def _cfg(url='', **kwargs):
         **kwargs
     }
 
+
 default_cfgs = {
     'MetaFG_0': _cfg(),
     'MetaFG_1': _cfg(),
     'MetaFG_2': _cfg(),
 }
+
 
 def make_blocks(stage_index,depths,embed_dims,img_size,dpr,extra_token_num=1,num_heads=8,mlp_ratio=4.,stage_type='conv'):
     stage_name = f'stage_{stage_index}'
@@ -178,6 +183,8 @@ class MetaFG(nn.Module):
         x = self.forward_features(x,meta)
         x = self.head(x)
         return x 
+
+
 @register_model
 def MetaFG_0(pretrained=False, **kwargs):
     model = MetaFG(conv_embed_dims = [64,96,192],attn_embed_dims=[384,768],
@@ -187,6 +194,8 @@ def MetaFG_0(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 @register_model
 def MetaFG_1(pretrained=False, **kwargs):
     model = MetaFG(conv_embed_dims = [64,96,192],attn_embed_dims=[384,768],
@@ -196,6 +205,8 @@ def MetaFG_1(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 @register_model
 def MetaFG_2(pretrained=False, **kwargs):
     model = MetaFG(conv_embed_dims = [128,128,256],attn_embed_dims=[512,1024],
@@ -205,6 +216,8 @@ def MetaFG_2(pretrained=False, **kwargs):
         load_pretrained(
             model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 3))
     return model
+
+
 if __name__ == "__main__":
     x = torch.randn([2, 3, 224, 224])
     model = MetaFG()

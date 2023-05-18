@@ -1,0 +1,44 @@
+Uses:
+Python 3.11.3 (add to PATH)
+NVIDIA CUDA 11.8
+
+
+-- Create venv --
+python -m venv MetaFormerBSLvenv
+
+
+-- Activate and deactivate venv --
+MetaFormerBSLvenv\Scripts\activate.bat
+deactivate
+
+
+-- Packages --
+python -m pip install --upgrade pip
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip3 install timm==0.6.13
+pip3 install opencv-python==4.7.0.72
+pip3 install yacs==0.1.8
+pip3 install pandas==2.0.1
+pip3 install scipy==1.10.1
+pip3 install termcolor==2.3.0
+pip3 install tensorboard==2.13.0
+
+
+-- Check GPU --
+nvidia-smi
+nvcc -V
+
+torch.cuda.is_available()
+torch.cuda.device_count()
+torch.cuda.current_device()
+torch.cuda.device(0)
+torch.cuda.get_device_name(0)
+
+
+-- Train using pretrained model --
+python -m torch.distributed.launch --nproc_per_node <num-of-gpus-to-use> --master_port 12345  main.py --cfg <config-file> --dataset <dataset-name> --pretrain <pretainedmodel-path> [--batch-size <batch-size-per-gpu> --output <output-directory> --tag <job-tag>]
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_1_224.yaml --local_rank -1 --batch-size 32 --tag inat2018_v1 --lr 5e-5 --min-lr 5e-7 --warmup-lr 5e-8 --epochs 300 --warmup-epochs 20 --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_1k_384.pth --accumulation-steps 2 --opts DATA.IMG_SIZE 384  
+
+
+-- Evaluate model --
+python -m torch.distributed.launch --nproc_per_node <num-of-gpus-to-use> --master_port 12345  main.py --eval --cfg <config-file> --dataset <dataset-name> --resume <checkpoint> [--batch-size <batch-size-per-gpu>]

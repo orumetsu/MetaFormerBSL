@@ -2,12 +2,8 @@ import os
 import torch
 import importlib
 import torch.distributed as dist
+from torch import amp
 
-try:
-    # noinspection PyUnresolvedReferences
-    from apex import amp
-except ImportError:
-    amp = None
 
 def relative_bias_interpolate(checkpoint,config):
     for k in list(checkpoint['model']):
@@ -36,9 +32,9 @@ def relative_bias_interpolate(checkpoint,config):
             relative_position_bias_table = torch.cat((cls_bias,relative_position_bias_table),dim=0)
             checkpoint['model'][k] = relative_position_bias_table
     return checkpoint
-    
-    
-def load_pretained(config,model,logger=None,strict=False):
+
+
+def load_pretrained(config,model,logger=None,strict=False):
     if logger is not None:
         logger.info(f"==============> pretrain form {config.MODEL.PRETRAINED}....................")
     checkpoint = torch.load(config.MODEL.PRETRAINED, map_location='cpu')
@@ -129,7 +125,6 @@ def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler,
     logger.info(f"{lastest_save_path} saved !!!")
 
 
-
 def get_grad_norm(parameters, norm_type=2):
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
@@ -161,8 +156,6 @@ def reduce_tensor(tensor):
     dist.all_reduce(rt, op=dist.ReduceOp.SUM)
     rt /= dist.get_world_size()
     return rt
-
-
 
 
 def load_ext(name, funcs):

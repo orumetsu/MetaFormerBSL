@@ -22,6 +22,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 def get_flops(model, input_shape):
     flops, params = get_model_complexity_info(model, input_shape, as_strings=False)
     return flops_to_string(flops), params_to_string(params)

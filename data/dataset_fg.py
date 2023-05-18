@@ -1,5 +1,4 @@
 import torch.utils.data as data
-
 import os
 import re
 import csv
@@ -10,11 +9,14 @@ import pickle
 import numpy as np
 import pandas as pd
 import random
-random.seed(2021)
 from PIL import Image
 from scipy import io as scio
 from math import radians, cos, sin, asin, sqrt, pi
+
+random.seed(2021)
 IMG_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+
+
 def get_spatial_info(latitude,longitude):
     if latitude and longitude:
         latitude = radians(latitude)
@@ -25,6 +27,8 @@ def get_spatial_info(latitude,longitude):
         return [x,y,z]
     else:
         return [0,0,0]
+
+
 def get_temporal_info(date,miss_hour=False):
     try:
         if date:
@@ -54,13 +58,15 @@ def get_temporal_info(date,miss_hour=False):
             return [0,0,0,0]
     except:
         return [0,0,0,0]
+
+
 def load_file(root,dataset):
-    if dataset == 'inaturelist2017':
+    if dataset == 'inaturalist2017':
         year_flag = 7
-    elif dataset == 'inaturelist2018':
+    elif dataset == 'inaturalist2018':
         year_flag = 8
     
-    if dataset == 'inaturelist2018':
+    if dataset == 'inaturalist2018':
         with open(os.path.join(root,'categories.json'),'r') as f:
             map_label = json.load(f)
         map_2018 = dict()
@@ -81,13 +87,13 @@ def load_file(root,dataset):
     with open(os.path.join(root,f'train201{year_flag}.json'),'r') as f:
         train_class_info = json.load(f)
     
-    if dataset == 'inaturelist2017':
+    if dataset == 'inaturalist2017':
         categories_2017 = [x['name'].strip().lower() for x in val_class_info['categories']]
         class_to_idx = {c: idx for idx, c in enumerate(categories_2017)}
         id2label = dict()
         for categorie in val_class_info['categories']:
             id2label[int(categorie['id'])] = categorie['name'].strip().lower()
-    elif dataset == 'inaturelist2018':
+    elif dataset == 'inaturalist2018':
         categories_2018 = [x['name'].strip().lower() for x in map_label]
         class_to_idx = {c: idx for idx, c in enumerate(categories_2018)}
         id2label = dict()
@@ -96,6 +102,8 @@ def load_file(root,dataset):
             id2label[int(categorie['id'])] = name.strip().lower()
     
     return train_class_info,train_id2meta,val_class_info,val_id2meta,class_to_idx,id2label
+
+
 def find_images_and_targets_cub200(root,dataset,istrain=False,aux_info=False):
     imageid2label = {}
     with open(os.path.join(os.path.join(root,'CUB_200_2011'),'image_class_labels.txt'),'r') as f:
@@ -141,6 +149,8 @@ def find_images_and_targets_cub200(root,dataset,istrain=False,aux_info=False):
                 else:
                     images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_cub200_attribute(root,dataset,istrain=False,aux_info=False):
     imageid2label = {}
     with open(os.path.join(os.path.join(root,'CUB_200_2011'),'image_class_labels.txt'),'r') as f:
@@ -186,6 +196,8 @@ def find_images_and_targets_cub200_attribute(root,dataset,istrain=False,aux_info
                 else:
                     images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_oxfordflower(root,dataset,istrain=False,aux_info=False):
     imagelabels = scio.loadmat(os.path.join(root,'imagelabels.mat'))
     imagelabels = imagelabels['labels'][0]
@@ -212,6 +224,8 @@ def find_images_and_targets_oxfordflower(root,dataset,istrain=False,aux_info=Fal
         else:
             images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_stanforddogs(root,dataset,istrain=False,aux_info=False):
     if istrain:
         anno_data = scio.loadmat(os.path.join(root,'train_list.mat'))
@@ -224,6 +238,8 @@ def find_images_and_targets_stanforddogs(root,dataset,istrain=False,aux_info=Fal
         target = int(label[0])-1
         images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_nabirds(root,dataset,istrain=False,aux_info=False):
     root = os.path.join(root,'nabirds')
     image_paths = pd.read_csv(os.path.join(root,'images.txt'),sep=' ',names=['img_id','filepath'])
@@ -245,6 +261,8 @@ def find_images_and_targets_nabirds(root,dataset,istrain=False,aux_info=False):
         target = int(label_map[row['target']])
         images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_stanfordcars_v1(root,dataset,istrain=False,aux_info=False):
     if istrain:
         flag = 'train'
@@ -263,6 +281,8 @@ def find_images_and_targets_stanfordcars_v1(root,dataset,istrain=False,aux_info=
         target = int(label[0][0])-1
         images_and_targets.append([file_path,target])
     return images_and_targets,None,images_info
+
+
 def find_images_and_targets_stanfordcars(root,dataset,istrain=False,aux_info=False):
     anno_data = scio.loadmat(os.path.join(root,'cars_annos.mat'))
     annotation = anno_data['annotations']
@@ -276,7 +296,9 @@ def find_images_and_targets_stanfordcars(root,dataset,istrain=False,aux_info=Fal
             images_and_targets.append([file_path,target])
         elif not istrain and int(split[0][0])==1:
             images_and_targets.append([file_path,target])
-    return images_and_targets,None,images_info        
+    return images_and_targets,None,images_info
+
+
 def find_images_and_targets_aircraft(root,dataset,istrain=False,aux_info=False):
     file_root = os.path.join(root,'fgvc-aircraft-2013b','data')
     if istrain:
@@ -302,10 +324,11 @@ def find_images_and_targets_aircraft(root,dataset,istrain=False,aux_info=False):
             target = class_to_idx[class_name]
             images_and_targets.append([file_path,target])
     return images_and_targets,class_to_idx,images_info
-            
+      
+
 def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False):
     train_class_info,train_id2meta,val_class_info,val_id2meta,class_to_idx,id2label = load_file(root,dataset)
-    miss_hour = (dataset == 'inaturelist2017')
+    miss_hour = (dataset == 'inaturalist2017')
 
     class_info = train_class_info if istrain else val_class_info
     id2meta = train_id2meta if istrain else val_id2meta
@@ -335,6 +358,8 @@ def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False)
         else:
             images_and_targets.append((file_path,target))
     return images_and_targets,class_to_idx,images_info
+
+
 def find_images_and_targets(root,istrain=False,aux_info=False):
     if os.path.exists(os.path.join(root,'train.json')):
         with open(os.path.join(root,'train.json'),'r') as f:
@@ -343,7 +368,7 @@ def find_images_and_targets(root,istrain=False,aux_info=False):
         with open(os.path.join(root,'train_mini.json'),'r') as f:
             train_class_info = json.load(f)
     else:
-        raise ValueError(f'not eixst file {root}/train.json or {root}/train_mini.json')
+        raise ValueError(f'not exist file {root}/train.json or {root}/train_mini.json')
     with open(os.path.join(root,'val.json'),'r') as f:
         val_class_info = json.load(f)
     categories_2021 = [x['name'].strip().lower() for x in val_class_info['categories']]
@@ -389,14 +414,14 @@ class DatasetMeta(data.Dataset):
             transform=None,
             train=False,
             aux_info=False,
-            dataset='inaturelist2021',
+            dataset='inaturalist2021',
             class_ratio=1.0,
             per_sample=1.0):
         self.aux_info = aux_info
         self.dataset = dataset
-        if dataset in ['inaturelist2021','inaturelist2021_mini']:
+        if dataset in ['inaturalist2021','inaturalist2021_mini']:
             images, class_to_idx,images_info = find_images_and_targets(root,train,aux_info)
-        elif dataset in ['inaturelist2017','inaturelist2018']:
+        elif dataset in ['inaturalist2017','inaturalist2018']:
             images, class_to_idx,images_info = find_images_and_targets_2017_2018(root,dataset,train,aux_info)
         elif dataset == 'cub-200':
             images, class_to_idx,images_info = find_images_and_targets_cub200(root,dataset,train,aux_info)
@@ -439,19 +464,15 @@ class DatasetMeta(data.Dataset):
         else:
             return img, target
 
+
     def __len__(self):
         return len(self.samples)
+
+
+
 if __name__ == '__main__':
-#     train_dataset = DatasetPre('./fgvc_previous','./fgvc_previous',train=True,aux_info=True)
-#     import ipdb;ipdb.set_trace()
-#     train_dataset = DatasetMeta('./nabirds',train=True,aux_info=False,dataset='nabirds')
-#     find_images_and_targets_stanforddogs('./stanforddogs',None,istrain=True)
-#     find_images_and_targets_oxfordflower('./oxfordflower',None,istrain=True)
-    find_images_and_targets_ablation('./inaturelist2021',True,True,0.5,1.0)
-#     find_images_and_targets_cub200('./cub-200','cub-200',True,True)
-#     find_images_and_targets_aircraft('./aircraft','aircraft',True)
-#     train_dataset = DatasetMeta('./aircraft',train=False,aux_info=False,dataset='aircraft')
-    import ipdb;ipdb.set_trace()
-#     find_images_and_targets_2017('')
+    print("Testing dataset_fg.py script...")
+    import ipdb; ipdb.set_trace()
+    images, class_to_idx,images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
     
 

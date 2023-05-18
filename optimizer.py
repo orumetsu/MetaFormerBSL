@@ -24,6 +24,7 @@ def build_optimizer(config, model):
 
     return optimizer
 
+
 # def set_weight_decay(model, skip_list=(), skip_keywords=(),lr=0.0):
 #     has_decay = []
 #     no_decay = []
@@ -44,6 +45,7 @@ def build_optimizer(config, model):
 # #             {'params':high_lr,'weight_decay': 0.,'lr':lr*10},
 #             {'params':high_lr,'lr':lr*20},
 #             {'params': no_decay, 'weight_decay': 0.}]
+
 
 def set_weight_decay(model, skip_list=(), skip_keywords=(),lr=0.0):
     has_decay = []

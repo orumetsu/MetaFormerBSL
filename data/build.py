@@ -13,18 +13,20 @@ from torchvision import datasets, transforms
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.data import Mixup
 from timm.data import create_transform
-from timm.data.transforms import _pil_interp
+from timm.data.transforms import _str_to_pil_interpolation
 
 from .cached_image_folder import CachedImageFolder
 from .samplers import SubsetRandomSampler
 from .dataset_fg import DatasetMeta
+
+
 def build_loader(config):
     config.defrost()
     dataset_train, config.MODEL.NUM_CLASSES = build_dataset(is_train=True, config=config)
     config.freeze()
-    print(f"local rank {config.LOCAL_RANK} / global rank {dist.get_rank()} successfully build train dataset")
+    print(f"Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built train dataset.")
     dataset_val, _ = build_dataset(is_train=False, config=config)
-    print(f"local rank {config.LOCAL_RANK} / global rank {dist.get_rank()} successfully build val dataset")
+    print(f"Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built val dataset.")
 
     num_tasks = dist.get_world_size()
     global_rank = dist.get_rank()
@@ -78,27 +80,26 @@ def build_dataset(is_train, config):
             dataset = CachedImageFolder(config.DATA.DATA_PATH, ann_file, prefix, transform,
                                         cache_mode=config.DATA.CACHE_MODE if is_train else 'part')
         else:
-#             root = os.path.join(config.DATA.DATA_PATH, prefix)
             root = './datasets/imagenet'
             dataset = datasets.ImageFolder(root, transform=transform)
         nb_classes = 1000
-    elif config.DATA.DATASET == 'inaturelist2021':
-        root = './datasets/inaturelist2021'
+    elif config.DATA.DATASET == 'inaturalist2021':
+        root = './datasets/inaturalist2021'
         dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET,
                              class_ratio=config.DATA.CLASS_RATIO,per_sample=config.DATA.PER_SAMPLE)
         nb_classes = 10000
-    elif config.DATA.DATASET == 'inaturelist2021_mini':
-        root = './datasets/inaturelist2021_mini'
+    elif config.DATA.DATASET == 'inaturalist2021_mini':
+        root = './datasets/inaturalist2021_mini'
         dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
         nb_classes = 10000
-    elif config.DATA.DATASET == 'inaturelist2017':
-        root = './datasets/inaturelist2017'
-        dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
-        nb_classes = 5089
-    elif config.DATA.DATASET == 'inaturelist2018':
-        root = './datasets/inaturelist2018'
+    elif config.DATA.DATASET == 'inaturalist2018':
+        root = './datasets/inaturalist2018'
         dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
         nb_classes = 8142
+    elif config.DATA.DATASET == 'inaturalist2017':
+        root = './datasets/inaturalist2017'
+        dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
+        nb_classes = 5089
     elif config.DATA.DATASET == 'cub-200':
         root = './datasets/cub-200'
         dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
@@ -124,7 +125,7 @@ def build_dataset(is_train, config):
         dataset = DatasetMeta(root=root,transform=transform,train=is_train,aux_info=config.DATA.ADD_META,dataset=config.DATA.DATASET)
         nb_classes = 100
     else:
-        raise NotImplementedError("We only support ImageNet and inaturelist.")
+        raise NotImplementedError(f"Given dataset: {config.DATA.DATASET} is not supported.")
 
     return dataset, nb_classes
 
@@ -154,14 +155,14 @@ def build_transform(is_train, config):
         if config.TEST.CROP:
             size = int((256 / 224) * config.DATA.IMG_SIZE)
             t.append(
-                transforms.Resize(size, interpolation=_pil_interp(config.DATA.INTERPOLATION)),
+                transforms.Resize(size, interpolation=_str_to_pil_interpolation(config.DATA.INTERPOLATION)),
                 # to maintain same ratio w.r.t. 224 images
             )
             t.append(transforms.CenterCrop(config.DATA.IMG_SIZE))
         else:
             t.append(
                 transforms.Resize((config.DATA.IMG_SIZE, config.DATA.IMG_SIZE),
-                                  interpolation=_pil_interp(config.DATA.INTERPOLATION))
+                                  interpolation=_str_to_pil_interpolation(config.DATA.INTERPOLATION))
             )
 
     t.append(transforms.ToTensor())

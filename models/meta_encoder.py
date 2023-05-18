@@ -1,4 +1,6 @@
 import torch.nn as nn
+
+
 class ResNormLayer(nn.Module):
     def __init__(self, linear_size,):
         super(ResNormLayer, self).__init__()
