@@ -149,3 +149,7 @@ dmypy.json
 
 # venv
 /MetaFormerBSLvenv
+
+# vscode
+.vs/
+.vscode/
