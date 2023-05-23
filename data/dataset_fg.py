@@ -472,7 +472,6 @@ class DatasetMeta(data.Dataset):
 
 if __name__ == '__main__':
     print("Testing dataset_fg.py script...")
-    import ipdb; ipdb.set_trace()
     images, class_to_idx,images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
     
 
