@@ -144,9 +144,6 @@ dmypy.json
 /aircraft
 /datasets
 
-# installers
-/installers
-
 # venv
 /MetaFormerBSLvenv
 
