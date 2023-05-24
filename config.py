@@ -72,8 +72,8 @@ _C.MODEL.DROP_PATH_RATE = 0.1
 _C.MODEL.LABEL_SMOOTHING = 0.1
 #pretrain
 _C.MODEL.PRETRAINED = None
-_C.MODEL.DORP_HEAD = True
-_C.MODEL.DORP_META = True
+_C.MODEL.DROP_HEAD = True
+_C.MODEL.DROP_META = True
 
 _C.MODEL.ONLY_LAST_CLS = False
 _C.MODEL.EXTRA_TOKEN_NUM = 1
@@ -176,7 +176,7 @@ _C.EVAL_MODE = False
 # Test throughput only, overwritten by command line argument
 _C.THROUGHPUT_MODE = False
 # local rank for DistributedDataParallel, given by command line argument
-_C.LOCAL_RANK = 0
+_C.LOCAL_RANK = int(os.environ["LOCAL_RANK"])
 
 
 
@@ -255,7 +255,7 @@ def update_config(config, args):
         config.MODEL.PRETRAINED = args.pretrain
 
     # set local rank for distributed training
-    config.LOCAL_RANK = args.local_rank
+    # config.LOCAL_RANK = args.local_rank
 
     # output folder
     config.OUTPUT = os.path.join(config.OUTPUT, config.MODEL.NAME, config.TAG)

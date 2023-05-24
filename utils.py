@@ -43,7 +43,7 @@ def load_pretrained(config,model,logger=None,strict=False):
             checkpoint['model'] = checkpoint['state_dict_ema']
         else:
             checkpoint['model'] = checkpoint
-    if config.MODEL.DORP_HEAD:
+    if config.MODEL.DROP_HEAD:
         if 'head.weight' in checkpoint['model'] and 'head.bias' in checkpoint['model']:
             if logger is not None:
                 logger.info(f"==============> drop head....................")
@@ -54,7 +54,7 @@ def load_pretrained(config,model,logger=None,strict=False):
                 logger.info(f"==============> drop head....................")
             del checkpoint['model']['head.fc.weight']
             del checkpoint['model']['head.fc.bias']
-    if config.MODEL.DORP_META:
+    if config.MODEL.DROP_META:
         if logger is not None:
             logger.info(f"==============> drop meta head....................")
         for k in list(checkpoint['model']):

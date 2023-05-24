@@ -80,7 +80,7 @@ def parse_option():
     
     
     # distributed training
-    parser.add_argument("--local-rank", type=int, required=True, help='local rank for DistributedDataParallel')
+    # parser.add_argument("--local-rank", type=int, required=True, help='local rank for DistributedDataParallel')
 
     args, unparsed = parser.parse_known_args()
 
@@ -97,8 +97,8 @@ def main(config):
     logger.info(str(model))
 
     optimizer = build_optimizer(config, model)
-    if config.AMP_OPT_LEVEL != "O0":
-        model, optimizer = amp.initialize(model, optimizer, opt_level=config.AMP_OPT_LEVEL)
+    # if config.AMP_OPT_LEVEL != "O0":
+    #     model, optimizer = amp.initialize(model, optimizer, opt_level=config.AMP_OPT_LEVEL)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[config.LOCAL_RANK], broadcast_buffers=False)
     model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
