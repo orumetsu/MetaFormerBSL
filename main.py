@@ -207,6 +207,8 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
             outputs = model(samples,meta)
         else:
             outputs = model(samples)
+        
+        print("Output", outputs)
 
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             loss = criterion(outputs, targets)

@@ -39,7 +39,7 @@ cd "/mnt/e/Rivan/Tugas Akhir/MetaFormerBSL"
 
 -- Train using pretrained model --
 python -m torch.distributed.launch --nproc_per_node <num-of-gpus-to-use> --master_port 12345  main.py --cfg <config-file> --dataset <dataset-name> --pretrain <pretainedmodel-path> [--batch-size <batch-size-per-gpu> --output <output-directory> --tag <job-tag>]
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --opts DATA.IMG_SIZE 384 --batch-size 32 --data-path ./datasets/inaturalist2018 --use-checkpoint --tag MetaFG0_iNat2018 --num-workers 2 --lr 5e-5 --min-lr 5e-7 --warmup-lr 5e-8 --epochs 1 --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_1k_384.pth
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --opts DATA.IMG_SIZE 384 --batch-size 4 --data-path ./datasets/inaturalist2018 --use-checkpoint --tag MetaFG0_iNat2018 --num-workers 1 --lr 5e-5 --min-lr 5e-7 --warmup-lr 5e-8 --epochs 1 --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_1k_384.pth
 
 
 
