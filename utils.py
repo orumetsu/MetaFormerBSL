@@ -2,7 +2,7 @@ import os
 import torch
 import importlib
 import torch.distributed as dist
-from torch import amp
+# from torch import amp
 
 
 def relative_bias_interpolate(checkpoint,config):
@@ -36,7 +36,7 @@ def relative_bias_interpolate(checkpoint,config):
 
 def load_pretrained(config,model,logger=None,strict=False):
     if logger is not None:
-        logger.info(f"==============> pretrain form {config.MODEL.PRETRAINED}....................")
+        logger.info(f"==============> pretrain from {config.MODEL.PRETRAINED}....................")
     checkpoint = torch.load(config.MODEL.PRETRAINED, map_location='cpu')
     if 'model' not in checkpoint:
         if 'state_dict_ema' in checkpoint:
@@ -71,7 +71,7 @@ def load_pretrained(config,model,logger=None,strict=False):
     torch.cuda.empty_cache()
 
 
-def load_checkpoint(config, model, optimizer, lr_scheduler, logger):
+def load_checkpoint(config, model, optimizer, lr_scheduler, logger, scaler):
     logger.info(f"==============> Resuming form {config.MODEL.RESUME}....................")
     if config.MODEL.RESUME.startswith('https'):
         checkpoint = torch.hub.load_state_dict_from_url(
@@ -93,17 +93,18 @@ def load_checkpoint(config, model, optimizer, lr_scheduler, logger):
         config.TRAIN.START_EPOCH = checkpoint['epoch'] + 1
         config.freeze()
         if 'amp' in checkpoint and config.AMP_OPT_LEVEL != "O0" and checkpoint['config'].AMP_OPT_LEVEL != "O0":
-            amp.load_state_dict(checkpoint['amp'])
+            scaler.load_state_dict(checkpoint['amp'])
+            print("Loaded Scaler: ", scaler)
         logger.info(f"=> loaded successfully '{config.MODEL.RESUME}' (epoch {checkpoint['epoch']})")
         if 'max_accuracy' in checkpoint:
             max_accuracy = checkpoint['max_accuracy']
 
     del checkpoint
     torch.cuda.empty_cache()
-    return max_accuracy
+    return max_accuracy, scaler
 
 
-def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler, logger):
+def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler, logger, scaler):
     save_state = {'model': model.state_dict(),
                   'optimizer': optimizer.state_dict(),
                   'lr_scheduler': lr_scheduler.state_dict(),
@@ -111,7 +112,8 @@ def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler,
                   'epoch': epoch,
                   'config': config}
     if config.AMP_OPT_LEVEL != "O0":
-        save_state['amp'] = amp.state_dict()
+        save_state['amp'] = scaler.state_dict()
+        print("Saved Scaler: ", scaler)
 
     save_path = os.path.join(config.OUTPUT, f'ckpt_epoch_{epoch}.pth')
     logger.info(f"{save_path} saving......")
