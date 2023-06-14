@@ -24,9 +24,9 @@ def build_loader(config):
     config.defrost()
     dataset_train, config.MODEL.NUM_CLASSES = build_dataset(is_train=True, config=config)
     config.freeze()
-    print(f"Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built train dataset.")
+    print(f"-= Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built train dataset =-")
     dataset_val, _ = build_dataset(is_train=False, config=config)
-    print(f"Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built val dataset.")
+    print(f"-= Local rank: {config.LOCAL_RANK} / Global rank: {dist.get_rank()}. Successfully built val dataset =-")
 
     num_tasks = dist.get_world_size()
     global_rank = dist.get_rank()

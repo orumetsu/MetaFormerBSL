@@ -24,10 +24,10 @@ pip3 install scipy==1.10.1
 pip3 install termcolor==2.3.0
 pip3 install tensorboard==2.13.0
 
--- Check GPU --
+
+-- Check GPU Compatibility --
 nvidia-smi
 nvcc -V
-
 torch.cuda.is_available()
 torch.cuda.nccl.version()
 torch.cuda.device_count()
@@ -35,16 +35,17 @@ torch.cuda.current_device()
 torch.cuda.device(0)
 torch.cuda.get_device_name(0)
 
+
+-- Local Directory --
 cd "/mnt/e/Rivan/Tugas Akhir/MetaFormerBSL"
 
--- Train using pretrained model --
-python -m torch.distributed.launch --nproc_per_node <num-of-gpus-to-use> --master_port 12345  main.py --cfg <config-file> --dataset <dataset-name> --pretrain <pretainedmodel-path> [--batch-size <batch-size-per-gpu> --output <output-directory> --tag <job-tag>]
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --num-workers 8 --dataset inaturalist2018 --epochs 2 --batch-size 16 --accumulation-steps 64 --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFG0_iNat2018
+
+-- SOFTMAX LOSS --
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018  --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 4 --accumulation-steps 128
+
+-- BALANCED SOFTMAX LOSS --
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018  --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Balanced_Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 4 --accumulation-steps 128 --use-balanced-softmax-loss
 
 -- Evaluate model --
-python -m torch.distributed.launch --nproc_per_node <num-of-gpus-to-use> --master_port 12345  main.py --eval --cfg <config-file> --dataset <dataset-name> --resume <checkpoint> [--batch-size <batch-size-per-gpu>]
-
-
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --opts DATA.IMG_SIZE 384 --batch-size 8 --data-path ./datasets/inaturalist2018 --use-checkpoint --tag MetaFG0_iNat2018 --num-workers 1 --lr 5e-5 --min-lr 5e-7 --warmup-lr 5e-8 --epochs 1 --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_1k_384.pth
-
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --opts DATA.IMG_SIZE 384 --dataset inaturalist2018 --batch-size 8 --pretrain ./pretrained_model/metafg_0_1k_384.pth --tag MetaFG0_iNat2018
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/latest.pth" --num-workers 4 --batch-size 4
+torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/latest.pth" --num-workers 4 --batch-size 4

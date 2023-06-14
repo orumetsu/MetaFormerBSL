@@ -2,7 +2,7 @@ import os
 import torch
 import importlib
 import torch.distributed as dist
-# from torch import amp
+import numpy as np
 
 
 def relative_bias_interpolate(checkpoint,config):
@@ -36,7 +36,7 @@ def relative_bias_interpolate(checkpoint,config):
 
 def load_pretrained(config,model,logger=None,strict=False):
     if logger is not None:
-        logger.info(f"==============> pretrain from {config.MODEL.PRETRAINED}....................")
+        logger.info(f"-=-=+ Pretraining from: '{config.MODEL.PRETRAINED}' +=-=-")
     checkpoint = torch.load(config.MODEL.PRETRAINED, map_location='cpu')
     if 'model' not in checkpoint:
         if 'state_dict_ema' in checkpoint:
@@ -46,17 +46,17 @@ def load_pretrained(config,model,logger=None,strict=False):
     if config.MODEL.DROP_HEAD:
         if 'head.weight' in checkpoint['model'] and 'head.bias' in checkpoint['model']:
             if logger is not None:
-                logger.info(f"==============> drop head....................")
+                logger.info(f"-=-=+ Dropping Head +=-=-")
             del checkpoint['model']['head.weight']
             del checkpoint['model']['head.bias']
         if 'head.fc.weight' in checkpoint['model'] and 'head.fc.bias' in checkpoint['model']:
             if logger is not None:
-                logger.info(f"==============> drop head....................")
+                logger.info(f"-=-=+ Dropping Head +=-=-")
             del checkpoint['model']['head.fc.weight']
             del checkpoint['model']['head.fc.bias']
     if config.MODEL.DROP_META:
         if logger is not None:
-            logger.info(f"==============> drop meta head....................")
+            logger.info(f"-=-=+ Dropping Meta Head +=-=-")
         for k in list(checkpoint['model']):
             if 'meta' in k:
                 del checkpoint['model'][k]
@@ -64,7 +64,7 @@ def load_pretrained(config,model,logger=None,strict=False):
     checkpoint = relative_bias_interpolate(checkpoint,config)
     if 'point_coord' in checkpoint['model']:
         if logger is not None:
-            logger.info(f"==============> drop point coord....................")
+            logger.info(f"-=-=+ Dropping Point Coords +=-=-")
         del checkpoint['model']['point_coord']
     msg = model.load_state_dict(checkpoint['model'], strict=strict)
     del checkpoint
@@ -72,7 +72,7 @@ def load_pretrained(config,model,logger=None,strict=False):
 
 
 def load_checkpoint(config, model, optimizer, lr_scheduler, logger, scaler):
-    logger.info(f"==============> Resuming form {config.MODEL.RESUME}....................")
+    logger.info(f"==============> Resuming from: '{config.MODEL.RESUME}' <==============")
     if config.MODEL.RESUME.startswith('https'):
         checkpoint = torch.hub.load_state_dict_from_url(
             config.MODEL.RESUME, map_location='cpu', check_hash=True)
@@ -94,8 +94,8 @@ def load_checkpoint(config, model, optimizer, lr_scheduler, logger, scaler):
         config.freeze()
         if 'amp' in checkpoint and config.AMP_OPT_LEVEL != "O0" and checkpoint['config'].AMP_OPT_LEVEL != "O0":
             scaler.load_state_dict(checkpoint['amp'])
-            print("Loaded Scaler: ", scaler)
-        logger.info(f"=> loaded successfully '{config.MODEL.RESUME}' (epoch {checkpoint['epoch']})")
+            logger.info(f"Loaded Scaler: {scaler.state_dict()}")
+        logger.info(f"===> Loaded successfully: '{config.MODEL.RESUME}' (Epoch {(checkpoint['epoch'] + 1)}) <===")
         if 'max_accuracy' in checkpoint:
             max_accuracy = checkpoint['max_accuracy']
 
@@ -113,18 +113,18 @@ def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler,
                   'config': config}
     if config.AMP_OPT_LEVEL != "O0":
         save_state['amp'] = scaler.state_dict()
-        print("Saved Scaler: ", scaler)
+        logger.info(f"Saved Scaler: {scaler.state_dict()}")
 
-    save_path = os.path.join(config.OUTPUT, f'ckpt_epoch_{epoch}.pth')
-    logger.info(f"{save_path} saving......")
+    save_path = os.path.join(config.OUTPUT, f'ckpt_epoch_{(epoch + 1)}.pth')
+    logger.info(f"===> Saving checkpoint: '{save_path}' <===")
     torch.save(save_state, save_path)
-    logger.info(f"{save_path} saved !!!")
+    logger.info(f"===> Success <===")
     
     
     lastest_save_path = os.path.join(config.OUTPUT, f'latest.pth')
-    logger.info(f"{lastest_save_path} saving......")
+    logger.info(f"===> Saving checkpoint: '{lastest_save_path}' <===")
     torch.save(save_state, lastest_save_path)
-    logger.info(f"{lastest_save_path} saved !!!")
+    logger.info(f"===> Success <===")
 
 
 def get_grad_norm(parameters, norm_type=2):
@@ -140,13 +140,13 @@ def get_grad_norm(parameters, norm_type=2):
     return total_norm
 
 
-def auto_resume_helper(output_dir):
+def auto_resume_helper(output_dir, logger):
     checkpoints = os.listdir(output_dir)
     checkpoints = [ckpt for ckpt in checkpoints if ckpt.endswith('pth')]
-    print(f"All checkpoints founded in {output_dir}: {checkpoints}")
+    logger.info(f"-=-=+ All checkpoints found in '{output_dir}': {checkpoints} +=-=-")
     if len(checkpoints) > 0:
         latest_checkpoint = max([os.path.join(output_dir, d) for d in checkpoints], key=os.path.getmtime)
-        print(f"The latest checkpoint founded: {latest_checkpoint}")
+        logger.info(f"-=-=+ The latest checkpoint found: '{latest_checkpoint}' +=-=-")
         resume_file = latest_checkpoint
     else:
         resume_file = None
@@ -163,6 +163,53 @@ def reduce_tensor(tensor):
 def load_ext(name, funcs):
     ext = importlib.import_module(name)
     for fun in funcs:
-        assert hasattr(ext, fun), f'{fun} miss in module {name}'
+        assert hasattr(ext, fun), f'{fun} missing in module {name}'
     return ext
 
+# Many-Median-Low Shot Accuracy (from Balanced Softmax Loss)
+def shot_acc (preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_per_cls=False):
+    
+    if isinstance(train_data, np.ndarray):
+        training_labels = np.array(train_data).astype(int)
+    else:
+        training_labels = np.array(train_data.dataset.labels).astype(int)
+
+    if isinstance(preds, torch.Tensor):
+        preds = preds.detach().cpu().numpy()
+        labels = labels.detach().cpu().numpy()
+    elif isinstance(preds, np.ndarray):
+        pass
+    else:
+        raise TypeError('Type ({}) of preds not supported'.format(type(preds)))
+    train_class_count = []
+    test_class_count = []
+    class_correct = []
+    for l in np.unique(labels):
+        train_class_count.append(len(training_labels[training_labels == l]))
+        test_class_count.append(len(labels[labels == l]))
+        class_correct.append((preds[labels == l] == labels[labels == l]).sum())
+
+    many_shot = []
+    median_shot = []
+    low_shot = []
+    for i in range(len(train_class_count)):
+        if train_class_count[i] > many_shot_thr:
+            many_shot.append((class_correct[i] / test_class_count[i]))
+        elif train_class_count[i] < low_shot_thr:
+            low_shot.append((class_correct[i] / test_class_count[i]))
+        else:
+            median_shot.append((class_correct[i] / test_class_count[i]))    
+ 
+    if len(many_shot) == 0:
+        many_shot.append(0)
+    if len(median_shot) == 0:
+        median_shot.append(0)
+    if len(low_shot) == 0:
+        low_shot.append(0)
+
+    if acc_per_cls:
+        class_accs = [c / cnt for c, cnt in zip(class_correct, test_class_count)] 
+        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), class_accs
+    else:
+        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot)
+    

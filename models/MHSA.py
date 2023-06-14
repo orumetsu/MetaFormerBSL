@@ -168,4 +168,3 @@ class MHSABlock(nn.Module):
         x = x + self.drop_path(self.attn(self.norm1(x)))
         x = x + self.drop_path(self.mlp(self.norm2(x),H//2,W//2))
         return x
-

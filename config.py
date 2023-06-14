@@ -3,7 +3,7 @@
 # Copyright (c) 2021 Microsoft
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ze Liu
-# --------------------------------------------------------'
+# --------------------------------------------------------
 
 import os
 import yaml
@@ -170,15 +170,17 @@ _C.SAVE_FREQ = 1
 # Frequency to logging info
 _C.PRINT_FREQ = 10
 # Fixed random seed
-_C.SEED = 0
+_C.SEED = 2023
 # Perform evaluation only, overwritten by command line argument
 _C.EVAL_MODE = False
 # Test throughput only, overwritten by command line argument
 _C.THROUGHPUT_MODE = False
+
+
 # local rank for DistributedDataParallel, given by command line argument
 _C.LOCAL_RANK = int(os.environ["LOCAL_RANK"])
-
-
+# Balanced Softmax Loss
+_C.USE_BALANCED_SOFTMAX_LOSS = False
 
 
 def _update_config_from_file(config, cfg_file):
@@ -191,7 +193,8 @@ def _update_config_from_file(config, cfg_file):
             _update_config_from_file(
                 config, os.path.join(os.path.dirname(cfg_file), cfg)
             )
-    print('=> merge config from {}'.format(cfg_file))
+
+    print("-= Merging config from: '{}' =-".format(cfg_file))
     config.merge_from_file(cfg_file)
     config.freeze()
 
@@ -216,7 +219,7 @@ def update_config(config, args):
         config.MODEL.RESUME = args.resume
     if args.accumulation_steps:
         config.TRAIN.ACCUMULATION_STEPS = args.accumulation_steps
-        config.PRINT_FREQ = args.accumulation_steps
+        config.PRINT_FREQ = args.accumulation_steps # to show grad_norm correctly on logs
     if args.use_checkpoint:
         config.TRAIN.USE_CHECKPOINT = True
     if args.amp_opt_level:
@@ -228,9 +231,7 @@ def update_config(config, args):
     if args.eval:
         config.EVAL_MODE = True
     if args.throughput:
-        config.THROUGHPUT_MODE = True
-
-        
+        config.THROUGHPUT_MODE = True       
     if args.num_workers is not None:
         config.DATA.NUM_WORKERS = args.num_workers
         
@@ -255,8 +256,9 @@ def update_config(config, args):
     if args.pretrain is not None:
         config.MODEL.PRETRAINED = args.pretrain
 
-    # set local rank for distributed training
-    # config.LOCAL_RANK = args.local_rank
+    # Set Balanced Softmax Loss
+    if args.use_balanced_softmax_loss:
+        config.USE_BALANCED_SOFTMAX_LOSS = True
 
     # output folder
     config.OUTPUT = os.path.join(config.OUTPUT, config.MODEL.NAME, config.TAG)
@@ -275,6 +277,7 @@ def get_config(args):
 
 
 ################### For Inferencing ####################
+
 def update_inference_config(config, args):
     _update_config_from_file(config, args.cfg)
 

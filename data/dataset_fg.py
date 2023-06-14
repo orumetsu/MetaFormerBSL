@@ -13,7 +13,7 @@ from PIL import Image
 from scipy import io as scio
 from math import radians, cos, sin, asin, sqrt, pi
 
-random.seed(2021)
+random.seed(2023)
 IMG_EXTENSIONS = ['.png', '.jpg', '.jpeg']
 
 
@@ -360,7 +360,7 @@ def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False)
     return images_and_targets,class_to_idx,images_info
 
 
-def find_images_and_targets(root,istrain=False,aux_info=False):
+def find_images_and_targets_2021(root,istrain=False,aux_info=False):
     if os.path.exists(os.path.join(root,'train.json')):
         with open(os.path.join(root,'train.json'),'r') as f:
             train_class_info = json.load(f)
@@ -420,7 +420,7 @@ class DatasetMeta(data.Dataset):
         self.aux_info = aux_info
         self.dataset = dataset
         if dataset in ['inaturalist2021','inaturalist2021_mini']:
-            images, class_to_idx,images_info = find_images_and_targets(root,train,aux_info)
+            images, class_to_idx,images_info = find_images_and_targets_2021(root,train,aux_info)
         elif dataset in ['inaturalist2017','inaturalist2018']:
             images, class_to_idx,images_info = find_images_and_targets_2017_2018(root,dataset,train,aux_info)
         elif dataset == 'cub-200':
@@ -440,7 +440,7 @@ class DatasetMeta(data.Dataset):
                                f'Supported image extensions are {", ".join(IMG_EXTENSIONS)}')
         self.root = root
         self.samples = images
-        self.imgs = self.samples  # torchvision ImageFolder compat
+        self.imgs = self.samples  # torchvision ImageFolder compatible
         self.class_to_idx = class_to_idx
         self.images_info = images_info
         self.load_bytes = load_bytes
@@ -449,7 +449,7 @@ class DatasetMeta(data.Dataset):
 
     def __getitem__(self, index):
         if self.aux_info:
-            path, target,aux_info = self.samples[index]
+            path, target, aux_info = self.samples[index]
         else:
             path, target = self.samples[index]
         img = open(path, 'rb').read() if self.load_bytes else Image.open(path).convert('RGB')
@@ -471,7 +471,44 @@ class DatasetMeta(data.Dataset):
 
 
 if __name__ == '__main__':
-    print("Testing dataset_fg.py script...")
-    images, class_to_idx,images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
-    
+    print("-= Running dataset_fg.py script =-")
 
+    from collections import Counter
+
+    images, class_to_idx,images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
+    labels_list = [info["target"] for info in images_info]
+    labels_count = Counter(labels_list)
+
+    low_shot_thr = 20
+    many_shot_thr = 100
+    class_bin = {   
+                "high": {"cls_count": 0, "img_count": 0},
+                "mid" : {"cls_count": 0, "img_count": 0},
+                "low" : {"cls_count": 0, "img_count": 0},
+                }
+    
+    for data_count in labels_count.values():
+        if data_count > many_shot_thr:
+            class_bin["high"]["cls_count"] += 1
+            class_bin["high"]["img_count"] += data_count
+        elif data_count < low_shot_thr:
+            class_bin["low"]["cls_count"] += 1
+            class_bin["low"]["img_count"] += data_count
+        else:
+            class_bin["mid"]["cls_count"] += 1
+            class_bin["mid"]["img_count"] += data_count
+    
+    labels_count_list = [labels_count[label] for label in range(len(labels_count))]
+
+    # print(labels_count)
+    print(class_bin)
+    # print(labels_count_list)
+
+    # json_object = json.dumps(labels_count_list)
+    # print(json_object)
+
+    # with open('./datasets/inaturalist2018/train2018_class_freq.json', 'r') as fd:
+    #     freq = json.load(fd)
+    # freq = torch.tensor(freq)
+    # print(freq)
+    # print(freq.size())

@@ -25,29 +25,7 @@ def build_optimizer(config, model):
     return optimizer
 
 
-# def set_weight_decay(model, skip_list=(), skip_keywords=(),lr=0.0):
-#     has_decay = []
-#     no_decay = []
-#     high_lr = []
-#     for name, param in model.named_parameters():
-#         if not param.requires_grad:
-#             continue  # frozen weights
-#         if len(param.shape) == 1 or name.endswith(".bias") or (name in skip_list) or \
-#                 check_keywords_in_name(name, skip_keywords):
-#             if 'meta' in name:
-#                 high_lr.append(param)
-#             else:
-#                 no_decay.append(param)
-#             # print(f"{name} has no weight decay")
-#         else:
-#             has_decay.append(param)
-#     return [{'params': has_decay},
-# #             {'params':high_lr,'weight_decay': 0.,'lr':lr*10},
-#             {'params':high_lr,'lr':lr*20},
-#             {'params': no_decay, 'weight_decay': 0.}]
-
-
-def set_weight_decay(model, skip_list=(), skip_keywords=(),lr=0.0):
+def set_weight_decay(model, skip_list=(), skip_keywords=(), lr=0.0):
     has_decay = []
     no_decay = []
 

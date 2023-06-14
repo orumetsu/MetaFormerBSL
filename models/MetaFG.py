@@ -8,7 +8,7 @@ from timm.models.layers import trunc_normal_
 import numpy as np
 
 from .MBConv import MBConvBlock
-from .MHSA import MHSABlock,Mlp
+from .MHSA import MHSABlock, Mlp
 
 
 def _cfg(url='', **kwargs):
@@ -46,7 +46,7 @@ def make_blocks(stage_index,depths,embed_dims,img_size,dpr,extra_token_num=1,num
                                     image_size=image_size,stride=stride,num_heads=num_heads,extra_token_num=extra_token_num,
                                     mlp_ratio=mlp_ratio,drop_path=drop_path_rate))
         else:
-            raise NotImplementedError("We only support conv and mhsa")
+            raise NotImplementedError("We only support Conv and MHSA")
     return blocks
     
 
@@ -219,8 +219,8 @@ def MetaFG_2(pretrained=False, **kwargs):
 
 
 if __name__ == "__main__":
-    x = torch.randn([2, 3, 224, 224])
+    # remove . on imports if you want to run this script only
+    x = torch.randn([4, 3, 224, 224]) # batch size, channel, width, height
     model = MetaFG()
-    import ipdb;ipdb.set_trace()
     output = model(x)
     print(output.shape)
