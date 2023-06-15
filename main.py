@@ -188,7 +188,7 @@ def main(config):
         logger.info(f'Max accuracy: {max_accuracy:.3f}%')
         if config.DATA.ADD_META:
             logger.info(f"********** Masked-Meta Test ***********")
-            acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, training_labels, model,mask_meta=True)
+            acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels, mask_meta=True)
             logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
 #         data_loader_train.terminate()
     total_time = time.time() - start_time

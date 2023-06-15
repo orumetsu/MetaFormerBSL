@@ -1,51 +1,89 @@
-Uses:
+-=-= Google Cloud Compute Engine Specs and Image =-=-
 Python 3.10.6
 NVIDIA CUDA 12.1
 
+gcloud compute instances create metaformerbsl-2 \
+    --project=metaformerbsl \
+    --zone=us-west3-b \
+    --machine-type=n1-standard-4 \
+    --network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+    --maintenance-policy=TERMINATE \
+    --provisioning-model=STANDARD \
+    --service-account=14576081902-compute@developer.gserviceaccount.com \
+    --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append \
+    --accelerator=count=1,type=nvidia-tesla-t4 \
+    --tags=http-server,https-server \
+    --create-disk=auto-delete=yes,boot=yes,device-name=metaformerbsl-2,image=projects/ml-images/global/images/c2-deeplearning-pytorch-1-13-cu113-v20230501-debian-10-py37,mode=rw,size=300,type=projects/metaformerbsl/zones/us-west3-b/diskTypes/pd-balanced \
+    --no-shielded-secure-boot \
+    --shielded-vtpm \
+    --shielded-integrity-monitoring \
+    --labels=goog-ec-src=vm_add-gcloud \
+    --reservation-affinity=any
 
--- Create venv --
-python -m venv MetaFormerBSLvenv
+-=-= GCP Compute Engine VM Instance Setup =-=-
 
-
--- Activate and deactivate venv --
-MetaFormerBSLvenv\Scripts\activate.bat
-deactivate
-
-
--- Packages --
-sudo apt-get install python3-pip
-export PATH="/home/orumetsu/.local/bin:$PATH"
-pip3 install torch torchvision --no-cache-dir --index-url https://download.pytorch.org/whl/cu118
-pip3 install timm==0.4.5
-pip3 install opencv-python==4.7.0.72
-pip3 install yacs==0.1.8
-pip3 install pandas==2.0.1
-pip3 install scipy==1.10.1
-pip3 install termcolor==2.3.0
-pip3 install tensorboard==2.13.0
-
-
--- Check GPU Compatibility --
 nvidia-smi
 nvcc -V
-torch.cuda.is_available()
-torch.cuda.nccl.version()
-torch.cuda.device_count()
-torch.cuda.current_device()
-torch.cuda.device(0)
-torch.cuda.get_device_name(0)
+python3 --version
+python3
+import torch; torch.__version__; torch.cuda.is_available(); torch.cuda.nccl.version(); torch.cuda.device_count(); torch.cuda.current_device(); torch.cuda.device(0); torch.cuda.get_device_name(0);
+
+git clone https://github.com/orumetsu/MetaFormerBSL.git
+cd ./MetaFormerBSL
+mkdir ./output
+mkdir ./datasets
+mkdir ./datasets/inaturalist2018
+mkdir ./pretrained_model
+cd ./pretrained_model
+pip3 install gdown
+gdown 11gCk_IuSN7krdkOUSWSM4xlf8GGknmxc
+cd ../datasets/inaturalist2018
+
+gdown 1qbAa8tU8JlxkMP0lh4Kd5yZnSyxVbpwC
+wget --no-check-certificate https://ml-inat-competition-datasets.s3.amazonaws.com/2018/train_val2018.tar.gz
+md5sum train_val2018.tar.gz ---> b1c6952ce38f31868cc50ea72d066cc3
+wget --no-check-certificate https://ml-inat-competition-datasets.s3.amazonaws.com/2018/train2018.json.tar.gz
+md5sum train2018.json.tar.gz ---> bfa29d89d629cbf04d826a720c0a68b0
+wget --no-check-certificate https://ml-inat-competition-datasets.s3.amazonaws.com/2018/val2018.json.tar.gz
+md5sum val2018.json.tar.gz ---> f2ed8bfe3e9901cdefceb4e53cd3775d
+wget --no-check-certificate https://ml-inat-competition-datasets.s3.amazonaws.com/2018/inat2018_locations.zip
+md5sum inat2018_locations.zip ---> 1704763abc47b75820aa5a3d93c6c0f3
+wget --no-check-certificate https://ml-inat-competition-datasets.s3.amazonaws.com/2018/categories.json.tar.gz
+
+tar -xf categories.json.tar.gz
+tar -xf train2018.json.tar.gz
+tar -xf val2018.json.tar.gz
+tar -xf train_val2018.tar.gz
+sudo apt-get install unzip
+unzip inat2018_locations.zip
+
+rm categories.json.tar.gz inat2018_locations.zip train2018.json.tar.gz train_val2018.tar.gz val2018.json.tar.gz
+
+mv ./inat2018_locations/train2018_locations.json ./train2018_locations.json
+mv ./inat2018_locations/val2018_locations.json ./val2018_locations.json
+rmdir ./inat2018_locations
+
+cd ../..
+
+pip3 install timm==0.4.5
+pip3 install opencv-python==4.7.0.72
+pip3 install tensorboard==2.11.2
+pip3 install termcolor==2.3.0
+pip3 install yacs==0.1.8
+pip3 install -U openmim
+mim install mmcv==2.0.0
+
+-- SOFTMAX LOSS --
+torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 128 --accumulation-steps 4
+
+-- BALANCED SOFTMAX LOSS --
+torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Balanced_Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 128 --accumulation-steps 4 --use-balanced-softmax-loss
+
+-- Evaluate model --
+torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/latest.pth" --num-workers 4 --batch-size 128
+torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/latest.pth" --num-workers 4 --batch-size 128
+
 
 
 -- Local Directory --
 cd "/mnt/e/Rivan/Tugas Akhir/MetaFormerBSL"
-
-
--- SOFTMAX LOSS --
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018  --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 4 --accumulation-steps 128
-
--- BALANCED SOFTMAX LOSS --
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018  --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Balanced_Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 4 --accumulation-steps 128 --use-balanced-softmax-loss
-
--- Evaluate model --
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/latest.pth" --num-workers 4 --batch-size 4
-torchrun --standalone --nnodes=1 --nproc-per-node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/latest.pth" --num-workers 4 --batch-size 4
