@@ -311,7 +311,7 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
         time_per_batch = time.time() - end
 
         if config.TRAIN.ACCUMULATION_STEPS > 1: # scaling loss and batch time if using step accumulation
-            loss *= config.TRAIN.ACCUMULATION_STEPS
+            loss *= config.TRAIN.ACCUMULATION_STEPS # DO I SCALE THIS OR NOT???
             time_per_batch *= config.TRAIN.ACCUMULATION_STEPS
 
         loss_meter.update(loss.item(), targets.size(0))
