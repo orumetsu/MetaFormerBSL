@@ -328,7 +328,7 @@ def find_images_and_targets_aircraft(root,dataset,istrain=False,aux_info=False):
 
 def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False):
     train_class_info,train_id2meta,val_class_info,val_id2meta,class_to_idx,id2label = load_file(root,dataset)
-    miss_hour = (dataset == 'inaturalist2017')
+    miss_hour = (dataset == 'inaturalist2017') # ternyata ini bug
 
     class_info = train_class_info if istrain else val_class_info
     id2meta = train_id2meta if istrain else val_id2meta
@@ -503,6 +503,8 @@ if __name__ == '__main__':
     # print(labels_count)
     print(class_bin)
     # print(labels_count_list)
+
+    print([image[2] for image in images])
 
     # json_object = json.dumps(labels_count_list)
     # print(json_object)

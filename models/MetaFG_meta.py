@@ -91,9 +91,9 @@ class MetaFG_Meta(nn.Module):
                 setattr(self, f"meta_{ind+1}_head_1", meta_head_1)
                 setattr(self, f"meta_{ind+1}_head_2", meta_head_2)
         
-        
         stem_chs = (3 * (conv_embed_dims[0] // 4), conv_embed_dims[0])
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(conv_depths[1:]+attn_depths))]
+        
         #stage_0
         self.stage_0 = nn.Sequential(*[
                 nn.Conv2d(in_chans, stem_chs[0], 3, stride=2, padding=1, bias=False),
@@ -106,9 +106,11 @@ class MetaFG_Meta(nn.Module):
         self.bn1 = conv_norm_layer(conv_embed_dims[0])
         self.act1 = conv_act_layer(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
         #stage_1
         self.stage_1 = nn.ModuleList(make_blocks(1,conv_depths+attn_depths,conv_embed_dims+attn_embed_dims,img_size//4,
                                       dpr=dpr,num_heads=num_heads,extra_token_num=extra_token_num,mlp_ratio=mlp_ratio,stage_type='conv'))
+        
         #stage_2
         self.stage_2 = nn.ModuleList(make_blocks(2,conv_depths+attn_depths,conv_embed_dims+attn_embed_dims,img_size//4,
                                       dpr=dpr,num_heads=num_heads,extra_token_num=extra_token_num,mlp_ratio=mlp_ratio,stage_type='conv'))
@@ -117,6 +119,7 @@ class MetaFG_Meta(nn.Module):
         self.cls_token_1 = nn.Parameter(torch.zeros(1, 1, attn_embed_dims[0]))
         self.stage_3 = nn.ModuleList(make_blocks(3,conv_depths+attn_depths,conv_embed_dims+attn_embed_dims,img_size//8,
                                       dpr=dpr,num_heads=num_heads,extra_token_num=extra_token_num,mlp_ratio=mlp_ratio,stage_type='mhsa'))
+        
         #stage_4
         self.cls_token_2 = nn.Parameter(torch.zeros(1, 1, attn_embed_dims[1]))
         self.stage_4 = nn.ModuleList(make_blocks(4,conv_depths+attn_depths,conv_embed_dims+attn_embed_dims,img_size//16,
@@ -130,6 +133,7 @@ class MetaFG_Meta(nn.Module):
             self.aggregate = torch.nn.Conv1d(in_channels=2, out_channels=1, kernel_size=1)
             self.norm = attn_norm_layer(attn_embed_dims[1])
             self.norm_1 = attn_norm_layer(attn_embed_dims[0])
+
         # Classifier head
         self.head = nn.Linear(attn_embed_dims[-1], num_classes) if num_classes > 0 else nn.Identity()
         
@@ -223,6 +227,7 @@ class MetaFG_Meta(nn.Module):
         else:
             cls = cls_2.squeeze(dim=1)
         return cls
+    
     def forward(self, x,meta=None):
         if meta is not None:
             if self.mask_type=='linear':
