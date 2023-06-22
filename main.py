@@ -311,7 +311,7 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
         time_per_batch = time.time() - end
 
         if config.TRAIN.ACCUMULATION_STEPS > 1: # scaling loss and batch time if using step accumulation
-            loss *= config.TRAIN.ACCUMULATION_STEPS # DO I SCALE THIS OR NOT???
+            loss *= config.TRAIN.ACCUMULATION_STEPS
             time_per_batch *= config.TRAIN.ACCUMULATION_STEPS
 
         loss_meter.update(loss.item(), targets.size(0))
@@ -406,9 +406,12 @@ def validate(config, data_loader, model, training_labels, mask_meta=False):
         acc1_meter.update(acc1.item(), target.size(0))
         acc5_meter.update(acc5.item(), target.size(0))
 
-        many_acc_meter.update(many_shot_acc, target.size(0))
-        median_acc_meter.update(median_shot_acc, target.size(0))
-        low_acc_meter.update(low_shot_acc, target.size(0))
+        if many_shot_acc >= 0.:
+            many_acc_meter.update(many_shot_acc, target.size(0))
+        if median_shot_acc >= 0.:
+            median_acc_meter.update(median_shot_acc, target.size(0))
+        if low_shot_acc >= 0.:
+            low_acc_meter.update(low_shot_acc, target.size(0))
         
         if (idx + 1) % config.PRINT_FREQ == 0:
             memory_used = torch.cuda.max_memory_allocated() / (1024.0 * 1024.0)

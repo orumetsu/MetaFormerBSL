@@ -166,8 +166,9 @@ def load_ext(name, funcs):
         assert hasattr(ext, fun), f'{fun} missing in module {name}'
     return ext
 
+
 # Many-Median-Low Shot Accuracy (from Balanced Softmax Loss)
-def shot_acc (preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_per_cls=False):
+def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_per_cls=False):
     
     if isinstance(train_data, np.ndarray):
         training_labels = np.array(train_data).astype(int)
@@ -201,11 +202,11 @@ def shot_acc (preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc
             median_shot.append((class_correct[i] / test_class_count[i]))    
  
     if len(many_shot) == 0:
-        many_shot.append(0)
+        many_shot.append(-1)
     if len(median_shot) == 0:
-        median_shot.append(0)
+        median_shot.append(-1)
     if len(low_shot) == 0:
-        low_shot.append(0)
+        low_shot.append(-1)
 
     if acc_per_cls:
         class_accs = [c / cnt for c, cnt in zip(class_correct, test_class_count)] 
