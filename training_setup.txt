@@ -71,7 +71,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/Meta
 
 -- Evaluate model --
 torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/latest.pth" --num-workers 4 --batch-size 128
-torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/latest.pth" --num-workers 4 --batch-size 128
+torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/ckpt_epoch_140.pth" --num-workers 4 --batch-size 128
 
 
 
@@ -89,7 +89,7 @@ $ tmux ls
 0: 1 windows (created Tue Aug 23 12:39:52 2011) [103x30]
 
 $ tmux attach -t 0
-Back in the tmux sesion
+Back in the tmux session
 
 --- tmux ---
 Scroll Mode: Press Ctrl-b then [
@@ -101,9 +101,9 @@ Quit Scroll Mode: Press q
 
 
 --- GCLOUD CLI SETUP ---
-- Turn off External IP Address
 - Block Project SSH Keys
 
 gcloud init [then just follow instructions]
 gcloud compute ssh metaformerbsl-X [change X accordingly]
-gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/ckpt_epoch_60.pth E:\Rivan\compute_engine_results\Balanced_Softmax_Loss --tunnel-through-iap
+gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/log_rank_0.txt E:\Rivan\gcloud_results\MetaFormer_0-iNat2018-Balanced_Softmax_Loss --tunnel-through-iap
+gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/log_rank_0.txt E:\Rivan\gcloud_results\MetaFormer_0-iNat2018-Softmax_Loss --tunnel-through-iap
