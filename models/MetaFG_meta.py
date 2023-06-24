@@ -190,42 +190,59 @@ class MetaFG_Meta(nn.Module):
                 meta_2 = meta_2.reshape(B, -1, self.attn_embed_dims[1])
                 extra_tokens_1.append(meta_1)
                 extra_tokens_2.append(meta_2)
-            
+
+        # print("Input Shape:", x.size()) # Input Shape: torch.Size([4, 3, 224, 224])
         x = self.stage_0(x)
+        # print("Conv2D x3:", x.size()) # Conv2D x3: torch.Size([4, 64, 112, 112])
         x = self.bn1(x)
         x = self.act1(x)
         x = self.maxpool(x)
+        # print("MaxPool2D:", x.size()) # MaxPool2D: torch.Size([4, 64, 56, 56])
         for blk in self.stage_1:
-            x = blk(x)
+            x = blk(x) 
+            # print("MBConv1 x2:", x.size()) # MBConv1 x2: torch.Size([4, 96, 56, 56]) x2
         for blk in self.stage_2:
             x = blk(x)
+            # print("MBConv2 x3:", x.size()) # MBConv2 x3: torch.Size([4, 192, 28, 28]) x3
         H0,W0 = self.img_size//8,self.img_size//8
         for ind,blk in enumerate(self.stage_3):
             if ind==0:
                 x = blk(x,H0,W0,extra_tokens_1)
+                # print("Relative Transformer Block x5 (with patch_embed):", x.size()) # Relative Transformer Block x5 (with patch_embed): torch.Size([4, 199, 384])
             else:
                 x = blk(x,H0,W0)
+                # print("Relative Transformer Block x5:", x.size()) # Relative Transformer Block x5: torch.Size([4, 199, 384]) x4
         if not self.only_last_cls:
             cls_1 = x[:, :1, :]
+            # print("Class Token 1:", cls_1.size()) # Class Token 1: torch.Size([4, 1, 384])
             cls_1 = self.norm_1(cls_1)
             cls_1 = self.cl_1_fc(cls_1)
+        # print("Class Token 1 (Resized with MLP):", cls_1.size()) # Class Token 1 (Resized with MLP): torch.Size([4, 1, 768])
         
         x = x[:, self.extra_token_num:, :]
+        # print("Get Patch Embeddings Tokens:", x.size()) # Get Patch Embeddings Tokens: torch.Size([4, 196, 384])
         H1,W1 = self.img_size//16,self.img_size//16
         x = x.reshape(B,H1,W1,-1).permute(0, 3, 1, 2).contiguous()
+        # print("Tokens Reshaped to Images:", x.size()) # Tokens Reshaped to Images: torch.Size([4, 384, 14, 14])
         for ind,blk in enumerate(self.stage_4):
             if ind==0:
                 x = blk(x,H1,W1,extra_tokens_2)
+                # print("Relative Transformer Block x2 (with patch_embed):", x.size()) # Relative Transformer Block x2 (with patch_embed): torch.Size([4, 52, 768])
             else:
                 x = blk(x,H1,W1)
+                # print("Relative Transformer Block x2:", x.size()) # Relative Transformer Block x2: torch.Size([4, 52, 768])
         cls_2 = x[:, :1, :]
+        # print("Class Token 2:", cls_1.size()) # Class Token 2: torch.Size([4, 1, 768])
         cls_2 = self.norm_2(cls_2)
         if not self.only_last_cls:
             cls = torch.cat((cls_1,cls_2), dim=1)#B,2,C
+            # print("Concat Class 1 & 2:", cls.size()) # Concat Class 1 & 2: torch.Size([4, 2, 768])
             cls = self.aggregate(cls).squeeze(dim=1)#B,C
+            # print("Aggregate and Squeeze Classes:", cls.size()) # Aggregate and Squeeze Classes: torch.Size([4, 768])
             cls = self.norm(cls)
         else:
             cls = cls_2.squeeze(dim=1)
+        # print("Logits Size:", cls.size()) # Logits Size: torch.Size([4, 768])
         return cls
     
     def forward(self, x,meta=None):
@@ -283,4 +300,4 @@ if __name__ == "__main__":
     meta = torch.randn([4, 7]) # batch size, num_meta
     model = MetaFG_Meta()
     output = model(x, meta)
-    print(output.shape)
+    print("Classifier Head:", output.shape) # Classifier Head: torch.Size([4, 1000])
