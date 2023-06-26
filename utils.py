@@ -185,7 +185,9 @@ def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_
     train_class_count = []
     test_class_count = []
     class_correct = []
+    unique_labels = []
     for l in np.unique(labels):
+        unique_labels.append(l)
         train_class_count.append(len(training_labels[training_labels == l]))
         test_class_count.append(len(labels[labels == l]))
         class_correct.append((preds[labels == l] == labels[labels == l]).sum())
@@ -209,8 +211,8 @@ def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_
         low_shot.append(-1)
 
     if acc_per_cls:
-        class_accs = [c / cnt for c, cnt in zip(class_correct, test_class_count)] 
+        class_accs = (unique_labels, [c / cnt for c, cnt in zip(class_correct, test_class_count)])
         return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), class_accs
     else:
-        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot)
+        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), None
     
