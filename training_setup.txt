@@ -1,4 +1,5 @@
--=-= Google Cloud Compute Engine Specs and Image =-=-
+-=-= Google Cloud Compute Engine Specs and OS Image =-=-
+
 Python 3.7.12
 NVIDIA CUDA 11.3
 NCCL 2.14.3
@@ -9,6 +10,8 @@ CPU: Intel(R) Xeon(R) CPU @ 2.00GHz (4 vCores)
 RAM: 15GB
 GPU: NVIDIA Tesla T4, 16GB Memory
 Storage: 300GB Balanced Disk (SSD)
+
+
 
 -=-= GCP Compute Engine VM Instance Setup =-=-
 
@@ -63,13 +66,16 @@ pip3 install yacs==0.1.8
 pip3 install -U openmim
 mim install mmcv==2.0.0
 
--- SOFTMAX LOSS --
+
+--- SOFTMAX LOSS ---
 torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 128 --accumulation-steps 4
 
--- BALANCED SOFTMAX LOSS --
+
+--- BALANCED SOFTMAX LOSS ---
 torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --pretrain ./pretrained_model/metafg_0_inat21_384.pth --tag MetaFormer_0-iNat2018-Balanced_Softmax_Loss --opts DATA.IMG_SIZE 224 --epochs 150 --warmup-epochs 10 --num-workers 4 --batch-size 128 --accumulation-steps 4 --use-balanced-softmax-loss
 
--- Evaluate model --
+
+--- Evaluate model ---
 torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/latest.pth" --num-workers 4 --batch-size 128
 torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/MetaFG_meta_0_224.yaml --dataset inaturalist2018 --eval --resume "./output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/ckpt_epoch_140.pth" --num-workers 4 --batch-size 128
 
@@ -78,22 +84,24 @@ torchrun --standalone --nnodes=1 --nproc_per_node=1 main.py --cfg ./configs/Meta
 --- Local Directory ---
 cd "/mnt/e/Rivan/Tugas Akhir/MetaFormerBSL"
 
+
 --- USE THIS IF ON LINUX TERMINAL ---
 $ tmux
 $ make <something big>
 ......
 Connection fails for some reason
 Reconect
-
 $ tmux ls
 0: 1 windows (created Tue Aug 23 12:39:52 2011) [103x30]
-
 $ tmux attach -t 0
 Back in the tmux session
 
---- tmux ---
+
+--- tmux stuff ---
 Scroll Mode: Press Ctrl-b then [
 Quit Scroll Mode: Press q
+Quit Window: Press Ctrl-b then d
+
 
 --- Output Path ---
 /home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/xxxxxx.xxx
@@ -101,9 +109,7 @@ Quit Scroll Mode: Press q
 
 
 --- GCLOUD CLI SETUP ---
-- Block Project SSH Keys
-
+[Block Project SSH Keys]
 gcloud init [then just follow instructions]
-gcloud compute ssh metaformerbsl-X [change X accordingly]
-gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/log_rank_0.txt E:\Rivan\gcloud_results\MetaFormer_0-iNat2018-Balanced_Softmax_Loss --tunnel-through-iap
-gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/log_rank_0.txt E:\Rivan\gcloud_results\MetaFormer_0-iNat2018-Softmax_Loss --tunnel-through-iap
+gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Balanced_Softmax_Loss/log_rank_0.txt "E:\Rivan\Tugas Akhir\MetaFormerBSL\output\MetaFG_meta_0\MetaFormer_0-iNat2018-Balanced_Softmax_Loss" --tunnel-through-iap
+gcloud compute scp metaformerbsl-1:/home/rivan_arif/MetaFormerBSL/output/MetaFG_meta_0/MetaFormer_0-iNat2018-Softmax_Loss/log_rank_0.txt "E:\Rivan\Tugas Akhir\MetaFormerBSL\output\MetaFG_meta_0\MetaFormer_0-iNat2018-Softmax_Loss" --tunnel-through-iap
