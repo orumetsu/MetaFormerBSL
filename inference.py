@@ -2,9 +2,8 @@ import torch
 from PIL import Image
 from config import get_inference_config
 from models import build_model
+from data import get_spatial_info
 from torchvision.transforms import transforms
-import numpy as np
-import argparse
 from math import radians, cos, sin, pi
 import re
 import json
@@ -36,48 +35,6 @@ def read_class_names(file_path):
     return classes
 
 
-def get_spatial_info(latitude, longitude):
-    if latitude and longitude:
-        latitude = radians(latitude)
-        longitude = radians(longitude)
-        x = cos(latitude)*cos(longitude)
-        y = cos(latitude)*sin(longitude)
-        z = sin(latitude)
-        return [x,y,z]
-    else:
-        return [0,0,0]
-
-
-def get_temporal_info(date, miss_hour=False):
-    try:
-        if date:
-            if miss_hour:
-                pattern = re.compile(r'(\d*)-(\d*)-(\d*)', re.I)
-            else:
-                pattern = re.compile(r'(\d*)-(\d*)-(\d*) (\d*):(\d*):(\d*)', re.I)
-            m = pattern.match(date.strip())
-
-            if m:
-                year = int(m.group(1))
-                month = int(m.group(2))
-                day = int(m.group(3))
-                x_month = sin(2*pi*month/12)
-                y_month = cos(2*pi*month/12) 
-                if miss_hour:
-                    x_hour = 0
-                    y_hour = 0
-                else:
-                    hour = int(m.group(4))
-                    x_hour = sin(2*pi*hour/24)
-                    y_hour = cos(2*pi*hour/24)        
-                return [x_month,y_month,x_hour,y_hour]
-            else:
-                return [0,0,0,0]
-        else:
-            return [0,0,0,0]
-    except:
-        return [0,0,0,0]
-
 
 class Inference:
     def __init__(self, config_path, model_path):
@@ -86,8 +43,8 @@ class Inference:
 
         # Model Building
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print("Using", self.device, "device.")
         self.classes = read_class_names(r"./MetaFormerBSL/datasets/inaturalist2018/categories.json")
-        print(self.classes)
         self.config = model_config(self.config_path)
         self.model = build_model(self.config)
         self.checkpoint = torch.load(self.model_path, map_location='cpu')
@@ -106,12 +63,13 @@ class Inference:
             transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)
         ])
 
-    def predict(self, img_path, lat, lon): ###
+    def predict(self, img_path: str, location: tuple):
         temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) #
-        spatial_info = get_spatial_info(lat, lon)
-        meta = temporal_info + spatial_info
+        spatial_info = get_spatial_info(location[0], location[1])
+        meta = torch.Tensor(temporal_info + spatial_info)
+        meta.unsqueeze_(0)
         meta = meta.to(self.device)
-
+        
         image = Image.open(img_path).convert('RGB')
         image = self.transform_img(image)
         image.unsqueeze_(0)
@@ -121,30 +79,3 @@ class Inference:
         _, pred = torch.max(output.data, 1)
         prediction = self.classes[pred.data.item()]
         return prediction
-
-
-def parse_option():
-    parser = argparse.ArgumentParser('MetaFormerBSL Inference Script', add_help=False)
-    parser.add_argument('--cfg', type=str, metavar="FILE", help='Path to Config File', )
-    parser.add_argument('--model-path', type=str, help="Path to Model Weights")
-    parser.add_argument('--img-path', type=str, help='Path to Image')
-    parser.add_argument('--latitude', type=str, help='(latitude, longitude) in degrees')
-    parser.add_argument('--longitude', type=str, help='(latitude, longitude) in degrees')
-    parser.add_argument(
-        "--opts",
-        help="Modify config options by adding 'KEY VALUE' pairs.",
-        default=None,
-        nargs='+',
-    )
-    parser.add_argument('--dataset', type=str, help='dataset')
-    args = parser.parse_args()
-    return args
-
-
-if __name__ == '__main__':
-    args = parse_option()
-    result = Inference(config_path=args.cfg, model_path=args.model_path).predict(img_path=args.img_path, latitude=args.latitude, longitude=args.longitude)
-    print("Predicted:", result)
-
-# Usage: python inference.py --cfg 'path/to/cfg' --model_path 'path/to/model' --img-path 'path/to/img' --meta-path 'path/to/meta'
-# 
