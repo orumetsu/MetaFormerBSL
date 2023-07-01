@@ -212,7 +212,7 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
     end = time.time()
     for idx, data in enumerate(data_loader):
         if config.DATA.ADD_META:
-            samples, targets,meta = data
+            samples, targets, meta = data
             meta = [m.float() for m in meta]
             meta = torch.stack(meta,dim=0)
             meta = meta.cuda(non_blocking=True)
@@ -358,11 +358,11 @@ def validate(config, data_loader, model, training_labels, mask_meta=False):
     many_acc_meter = AverageMeter()
     median_acc_meter = AverageMeter()
     low_acc_meter = AverageMeter()
-    
-    # class_acc = {}
 
-    # for label in np.unique(training_labels):
-    #     class_acc[label] = 0.
+    many_shot_thr = 100
+    low_shot_thr = 20
+    print("Many-Shot Threshold:", many_shot_thr)
+    print("Low-Shot Threshold:", low_shot_thr)
 
     end = time.time()
     for idx, data in enumerate(data_loader):
@@ -392,12 +392,7 @@ def validate(config, data_loader, model, training_labels, mask_meta=False):
 
         # many-median-low shot acc
         preds = torch.argmax(output, dim=1)
-        many_shot_acc, median_shot_acc, low_shot_acc, class_accs_batch = shot_acc(preds, target, training_labels, acc_per_cls=True)
-
-        # class_label_batch = class_accs_batch[0]
-        # class_accuracy_batch = class_accs_batch[1]
-        # for index in range(len(class_accs_batch[0])):
-        #     print(class_label_batch[index], class_accuracy_batch[index])
+        many_shot_acc, median_shot_acc, low_shot_acc, class_accs = shot_acc(preds, target, training_labels, acc_per_cls=True, many_shot_thr=many_shot_thr, low_shot_thr=low_shot_thr)
 
         acc1 = reduce_tensor(acc1)
         acc5 = reduce_tensor(acc5)

@@ -153,7 +153,7 @@ def build_transform(is_train, config):
     t = []
     if resize_im:
         if config.TEST.CROP:
-            size = int((256 / 224) * config.DATA.IMG_SIZE)
+            size = int((256 / 224) * config.DATA.IMG_SIZE) # possible explanation: rescale it a little bigger (but not too big) so smaller edge Resize and CenterCrop works
             t.append(
                 transforms.Resize(size, interpolation=_pil_interp(config.DATA.INTERPOLATION)),
                 # to maintain same ratio w.r.t. 224 images
