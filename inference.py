@@ -106,9 +106,9 @@ class Inference:
             transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)
         ])
 
-    def predict(self, img_path, location): ###
+    def predict(self, img_path, lat, lon): ###
         temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) #
-        spatial_info = get_spatial_info(location[0], location[1])
+        spatial_info = get_spatial_info(lat, lon)
         meta = temporal_info + spatial_info
         meta = meta.to(self.device)
 
@@ -128,14 +128,22 @@ def parse_option():
     parser.add_argument('--cfg', type=str, metavar="FILE", help='Path to Config File', )
     parser.add_argument('--model-path', type=str, help="Path to Model Weights")
     parser.add_argument('--img-path', type=str, help='Path to Image')
-    parser.add_argument('--location', type=tuple, help='(latitude, longitude) in degrees')
+    parser.add_argument('--latitude', type=str, help='(latitude, longitude) in degrees')
+    parser.add_argument('--longitude', type=str, help='(latitude, longitude) in degrees')
+    parser.add_argument(
+        "--opts",
+        help="Modify config options by adding 'KEY VALUE' pairs.",
+        default=None,
+        nargs='+',
+    )
+    parser.add_argument('--dataset', type=str, help='dataset')
     args = parser.parse_args()
     return args
 
 
 if __name__ == '__main__':
     args = parse_option()
-    result = Inference(config_path=args.cfg, model_path=args.model_path).predict(img_path=args.img_path, location=args.location)
+    result = Inference(config_path=args.cfg, model_path=args.model_path).predict(img_path=args.img_path, latitude=args.latitude, longitude=args.longitude)
     print("Predicted:", result)
 
 # Usage: python inference.py --cfg 'path/to/cfg' --model_path 'path/to/model' --img-path 'path/to/img' --meta-path 'path/to/meta'
