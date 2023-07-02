@@ -178,7 +178,7 @@ _C.THROUGHPUT_MODE = False
 
 
 # local rank for DistributedDataParallel, given by command line argument
-_C.LOCAL_RANK = int(os.environ["LOCAL_RANK"])
+_C.LOCAL_RANK = int(os.environ["LOCAL_RANK"]) if "LOCAL_RANK" in os.environ else 0
 # Balanced Softmax Loss
 _C.USE_BALANCED_SOFTMAX_LOSS = False
 

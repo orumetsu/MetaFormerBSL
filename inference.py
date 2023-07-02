@@ -4,7 +4,6 @@ from config import get_inference_config
 from models import build_model
 from data import get_spatial_info
 from torchvision.transforms import transforms
-from math import radians, cos, sin, pi
 import re
 import json
 
@@ -52,6 +51,7 @@ class Inference:
         print(msg)
         self.model.eval()
         self.model.to(self.device)
+        print("Finished constructing model.")
         
         # Image Preprocessing
         self.img_size = 224
@@ -76,6 +76,8 @@ class Inference:
         image = image.to(self.device)
 
         output = self.model(image, meta)
-        _, pred = torch.max(output.data, 1)
+        map_to_prob = torch.nn.Softmax(dim=1)
+        output = map_to_prob(output)
+        confidence, pred = torch.max(output.data, 1)
         prediction = self.classes[pred.data.item()]
-        return prediction
+        return confidence, prediction
