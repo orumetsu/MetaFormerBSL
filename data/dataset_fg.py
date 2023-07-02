@@ -479,8 +479,8 @@ if __name__ == '__main__':
     labels_list = [info["target"] for info in images_info]
     labels_count = Counter(labels_list)
 
-    low_shot_thr = 20
-    many_shot_thr = 100
+    low_shot_thr = 5
+    many_shot_thr = 400
     class_bin = {   
                 "high": {"cls_count": 0, "img_count": 0},
                 "mid" : {"cls_count": 0, "img_count": 0},
@@ -502,9 +502,9 @@ if __name__ == '__main__':
 
     # print(labels_count)
     print(class_bin)
-    # print(labels_count_list)
+    # print(sorted(labels_count_list))
 
-    print([image[2] for image in images])
+    # print([image[2] for image in images])
 
     # json_object = json.dumps(labels_count_list)
     # print(json_object)

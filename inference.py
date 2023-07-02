@@ -2,7 +2,7 @@ import torch
 from PIL import Image
 from config import get_inference_config
 from models import build_model
-from data import get_spatial_info
+from data import get_spatial_info, get_temporal_info
 from torchvision.transforms import transforms
 import re
 import json
@@ -33,17 +33,15 @@ def read_class_names(file_path):
 
     return classes
 
-
-
 class Inference:
-    def __init__(self, config_path, model_path):
+    def __init__(self, config_path, model_path, class_names):
         self.config_path = config_path
         self.model_path = model_path
 
         # Model Building
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("Using", self.device, "device.")
-        self.classes = read_class_names(r"./MetaFormerBSL/datasets/inaturalist2018/categories.json")
+        self.classes = read_class_names(class_names)
         self.config = model_config(self.config_path)
         self.model = build_model(self.config)
         self.checkpoint = torch.load(self.model_path, map_location='cpu')
@@ -63,9 +61,21 @@ class Inference:
             transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD)
         ])
 
-    def predict(self, img_path: str, location: tuple):
-        temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) #
-        spatial_info = get_spatial_info(location[0], location[1])
+    def _top_5_species(self, confidence, id):
+        rank = 1
+        print('Prediksi Spesies:')
+        for i in range(5):
+            print('{:2}. {:24}: {:5.2f}% [ID: {}]'.format(rank, self.classes[id[i].item()], confidence[i].item() * 100, id[i].item()))
+            rank += 1
+
+    def predict(self, img_path: str, location: tuple, use_meta=True, show_top_5=False):
+        if use_meta:
+            temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) # not used because of training bug, causing the time data to not be trained upon
+            spatial_info = get_spatial_info(location[0], location[1])
+        else:
+            temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) # not used because of training bug, causing the time data to not be trained upon
+            spatial_info = get_spatial_info(0, 0)
+        
         meta = torch.Tensor(temporal_info + spatial_info)
         meta.unsqueeze_(0)
         meta = meta.to(self.device)
@@ -78,6 +88,11 @@ class Inference:
         output = self.model(image, meta)
         map_to_prob = torch.nn.Softmax(dim=1)
         output = map_to_prob(output)
-        confidence, pred = torch.max(output.data, 1)
-        prediction = self.classes[pred.data.item()]
-        return confidence, prediction
+
+        if show_top_5:
+            classes_top_5 = torch.topk(output, 5, dim=1)
+            self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0])
+        
+        confidence, pred_id = torch.max(output.data, 1)
+        pred_class = self.classes[pred_id.data.item()]
+        return confidence, pred_id, pred_class
