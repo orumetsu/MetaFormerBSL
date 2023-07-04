@@ -63,7 +63,6 @@ class Inference:
 
     def _top_5_species(self, confidence, id):
         rank = 1
-        print('Prediksi Spesies:')
         result_log = []
         for i in range(5):
             result = '{:2}. {:40}: {:5.2f}% [ID: {}]'.format(rank, self.classes[id[i].item()], confidence[i].item() * 100, id[i].item())
