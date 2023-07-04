@@ -67,7 +67,6 @@ class Inference:
         result_log = []
         for i in range(5):
             result = '{:2}. {:40}: {:5.2f}% [ID: {}]'.format(rank, self.classes[id[i].item()], confidence[i].item() * 100, id[i].item())
-            print(result)
             result_log.append(result)
             rank += 1
         return result_log
