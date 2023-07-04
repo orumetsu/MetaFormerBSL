@@ -64,9 +64,14 @@ class Inference:
     def _top_5_species(self, confidence, id):
         rank = 1
         print('Prediksi Spesies:')
+        result_log = []
         for i in range(5):
-            print('{:2}. {:24}: {:5.2f}% [ID: {}]'.format(rank, self.classes[id[i].item()], confidence[i].item() * 100, id[i].item()))
+            result = '{:2}. {:40}: {:5.2f}% [ID: {}]'.format(rank, self.classes[id[i].item()], confidence[i].item() * 100, id[i].item())
+            print(result)
+            result_log.append(result)
             rank += 1
+        return result_log
+
 
     def predict(self, img_path: str, location: tuple, use_meta=True, show_top_5=False):
         if use_meta:
@@ -89,10 +94,12 @@ class Inference:
         map_to_prob = torch.nn.Softmax(dim=1)
         output = map_to_prob(output)
 
+        result_log = []
         if show_top_5:
             classes_top_5 = torch.topk(output, 5, dim=1)
-            self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0])
+            result_log = self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0], save_to_log=True)
+            result_log = self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0])
         
         confidence, pred_id = torch.max(output.data, 1)
         pred_class = self.classes[pred_id.data.item()]
-        return confidence, pred_id, pred_class
+        return confidence, pred_id, pred_class, result_log
