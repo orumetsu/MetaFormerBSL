@@ -1,5 +1,5 @@
 import torch
-from PIL import Image
+from PIL import Image, ImageOps
 from config import get_inference_config
 from models import build_model
 from data import get_spatial_info, get_temporal_info
@@ -85,6 +85,7 @@ class Inference:
         meta = meta.to(self.device)
         
         image = Image.open(img_path).convert('RGB')
+        image = ImageOps.exif_transpose(image)
         image = self.transform_img(image)
         image.unsqueeze_(0)
         image = image.to(self.device)
