@@ -97,7 +97,6 @@ class Inference:
         result_log = []
         if show_top_5:
             classes_top_5 = torch.topk(output, 5, dim=1)
-            result_log = self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0], save_to_log=True)
             result_log = self._top_5_species(classes_top_5.values.data[0], classes_top_5.indices.data[0])
         
         confidence, pred_id = torch.max(output.data, 1)
