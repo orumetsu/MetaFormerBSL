@@ -167,7 +167,7 @@ def load_ext(name, funcs):
     return ext
 
 
-# Many-Median-Low Shot Accuracy (from Balanced Softmax Loss)
+# Many-Medium-Few-Shot Top-k Accuracy (from Balanced Softmax Loss) # top-k hacked by orumetsu
 def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_per_cls=False):
     
     if isinstance(train_data, np.ndarray):
@@ -188,18 +188,33 @@ def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_
     for l in np.unique(labels):
         train_class_count.append(len(training_labels[training_labels == l]))
         test_class_count.append(len(labels[labels == l]))
-        class_correct.append((preds[labels == l] == labels[labels == l]).sum())
+        # hack for top-k, could break
+        cur_labels = labels[labels == l]
+        topk_preds = preds[labels == l]
+        summation = 0
+        for i in range(len(cur_labels)):
+            if isinstance(topk_preds[i], np.floating): # top-1 goes here
+                summation += 1 if cur_labels[i] == topk_preds[i] else 0
+            elif isinstance(topk_preds[i], np.ndarray): # # top-k goes here
+                summation += 1 if cur_labels[i] in topk_preds[i] else 0
+        class_correct.append(summation)
 
     many_shot = []
     median_shot = []
     low_shot = []
+    many_shot_len = []
+    median_shot_len = []
+    low_shot_len = []
     for i in range(len(train_class_count)):
         if train_class_count[i] > many_shot_thr:
             many_shot.append((class_correct[i] / test_class_count[i]))
+            many_shot_len.append(test_class_count[i])
         elif train_class_count[i] < low_shot_thr:
             low_shot.append((class_correct[i] / test_class_count[i]))
+            low_shot_len.append(test_class_count[i])
         else:
-            median_shot.append((class_correct[i] / test_class_count[i]))    
+            median_shot.append((class_correct[i] / test_class_count[i])) 
+            median_shot_len.append(test_class_count[i])   
  
     if len(many_shot) == 0:
         many_shot.append(-1)
@@ -208,9 +223,11 @@ def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_
     if len(low_shot) == 0:
         low_shot.append(-1)
 
+    # needed for AverageMeter
+    shot_len = (sum(many_shot_len), sum(median_shot_len), sum(low_shot_len))
+    
     if acc_per_cls:
         class_accs = [c / cnt for c, cnt in zip(class_correct, test_class_count)]
-        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), class_accs
+        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), class_accs, shot_len
     else:
-        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), None
-    
+        return np.mean(many_shot), np.mean(median_shot), np.mean(low_shot), shot_len
