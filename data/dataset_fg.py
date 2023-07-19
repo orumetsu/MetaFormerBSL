@@ -17,10 +17,10 @@ random.seed(2023)
 IMG_EXTENSIONS = ['.png', '.jpg', '.jpeg']
 
 
-def get_spatial_info(latitude,longitude):
-    if latitude and longitude:
-        latitude = radians(latitude)
-        longitude = radians(longitude)
+def get_spatial_info(location):
+    if location:
+        latitude = radians(location[0])
+        longitude = radians(location[1])
         x = cos(latitude)*cos(longitude)
         y = cos(latitude)*sin(longitude)
         z = sin(latitude)
@@ -328,7 +328,7 @@ def find_images_and_targets_aircraft(root,dataset,istrain=False,aux_info=False):
 
 def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False):
     train_class_info,train_id2meta,val_class_info,val_id2meta,class_to_idx,id2label = load_file(root,dataset)
-    miss_hour = (dataset == 'inaturalist2017') # ternyata ini bug
+    miss_hour = (dataset == 'inaturalist2017') # ternyata ini bug, yang bener ganti ke True
 
     class_info = train_class_info if istrain else val_class_info
     id2meta = train_id2meta if istrain else val_id2meta
@@ -352,8 +352,9 @@ def find_images_and_targets_2017_2018(root,dataset,istrain=False,aux_info=False)
                 'location_uncertainty':location_uncertainty,
                 'target':target}) 
         if aux_info:
+            location = (latitude, longitude) if (latitude is not None and longitude is not None) else None
             temporal_info = get_temporal_info(date,miss_hour=miss_hour)
-            spatial_info = get_spatial_info(latitude,longitude)
+            spatial_info = get_spatial_info(location)
             images_and_targets.append((file_path,target,temporal_info+spatial_info))
         else:
             images_and_targets.append((file_path,target))
@@ -398,8 +399,9 @@ def find_images_and_targets_2021(root,istrain=False,aux_info=False):
                 'location_uncertainty':location_uncertainty,
                 'target':target}) 
         if aux_info:
+            location = (latitude, longitude) if (latitude is not None and longitude is not None) else None
             temporal_info = get_temporal_info(date)
-            spatial_info = get_spatial_info(latitude,longitude)
+            spatial_info = get_spatial_info(location)
             images_and_targets.append((file_path,target,temporal_info+spatial_info))
         else:
             images_and_targets.append((file_path,target))
@@ -471,46 +473,54 @@ class DatasetMeta(data.Dataset):
 
 
 if __name__ == '__main__':
+    # Script for doing data extraction on iNaturalist 2018
     print("-= Running dataset_fg.py script =-")
 
     from collections import Counter
 
-    images, class_to_idx,images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
+    images, class_to_idx, images_info = find_images_and_targets_2017_2018('./datasets/inaturalist2018','inaturalist2018',istrain=True,aux_info=True)
+    idx_to_class = {v: k for k, v in class_to_idx.items()}
+    
+    print(images[0]) # get first 3 data samples
+    print(images_info[0]) # get first 3 image info
+
     labels_list = [info["target"] for info in images_info]
     labels_count = Counter(labels_list)
 
-    low_shot_thr = 5
-    many_shot_thr = 400
+    # Class bin for Many-Medium-Few-Shot stuff
+    few_shot_thr = 20
+    many_shot_thr = 100
     class_bin = {   
-                "high": {"cls_count": 0, "img_count": 0},
-                "mid" : {"cls_count": 0, "img_count": 0},
-                "low" : {"cls_count": 0, "img_count": 0},
+                "many": {"cls_count": 0, "img_count": 0},
+                "medium" : {"cls_count": 0, "img_count": 0},
+                "few" : {"cls_count": 0, "img_count": 0},
                 }
-    
     for data_count in labels_count.values():
         if data_count > many_shot_thr:
-            class_bin["high"]["cls_count"] += 1
-            class_bin["high"]["img_count"] += data_count
-        elif data_count < low_shot_thr:
-            class_bin["low"]["cls_count"] += 1
-            class_bin["low"]["img_count"] += data_count
+            class_bin["many"]["cls_count"] += 1
+            class_bin["many"]["img_count"] += data_count
+        elif data_count < few_shot_thr:
+            class_bin["few"]["cls_count"] += 1
+            class_bin["few"]["img_count"] += data_count
         else:
-            class_bin["mid"]["cls_count"] += 1
-            class_bin["mid"]["img_count"] += data_count
-    
-    labels_count_list = [labels_count[label] for label in range(len(labels_count))]
-
-    # print(labels_count)
+            class_bin["medium"]["cls_count"] += 1
+            class_bin["medium"]["img_count"] += data_count
     print(class_bin)
-    # print(sorted(labels_count_list))
 
-    # print([image[2] for image in images])
+    species_count = {}
+    for idx, data_count in labels_count.items():
+        species_count[idx_to_class[idx]] = {"key": idx,
+                                            "count": data_count}
+    # print(species_count)
+    # with open('./datasets/inaturalist2018/train2018_species_count.json', 'w') as fp:
+    #     json.dump(species_count, fp)
 
-    # json_object = json.dumps(labels_count_list)
-    # print(json_object)
+    ###
+    # labels_count_list = [labels_count[label] for label in range(len(labels_count))]
+    # print(labels_count_list)
 
+    # labels_count_list_json = json.dumps(labels_count_list)
+    # print(labels_count_list_json)
     # with open('./datasets/inaturalist2018/train2018_class_freq.json', 'r') as fd:
-    #     freq = json.load(fd)
-    # freq = torch.tensor(freq)
-    # print(freq)
-    # print(freq.size())
+    #     freq_list = json.load(fd)
+    # freq_list = torch.tensor(freq_list)
