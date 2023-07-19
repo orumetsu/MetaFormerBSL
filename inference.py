@@ -49,10 +49,10 @@ class Inference:
         print(msg)
         self.model.eval()
         self.model.to(self.device)
-        print("Finished constructing model.")
+        print("-= Finished constructing model =-")
         
         # Image Preprocessing
-        self.img_size = 224
+        self.img_size = self.config.DATA.IMG_SIZE
         self.crop_resize = int((256 / 224) * self.img_size)
         self.transform_img = transforms.Compose([
             transforms.Resize(self.crop_resize, interpolation=Image.BICUBIC),
@@ -71,14 +71,14 @@ class Inference:
         return result_log
 
 
-    def predict(self, img_path: str, location: tuple, use_meta=True, show_top_5=False):
+    def predict(self, img_path: str, location: tuple, date: str, miss_hour=False, use_meta=True, show_top_5=False):
         if use_meta:
-            temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) # not used because of training bug, causing the time data to not be trained upon
-            spatial_info = get_spatial_info(location[0], location[1])
+            temporal_info = get_temporal_info(date, miss_hour=miss_hour)
+            spatial_info = get_spatial_info(location)
         else:
-            temporal_info = [0, 0, 0, 0] # get_temporal_info(date, miss_hour=True) # not used because of training bug, causing the time data to not be trained upon
-            spatial_info = get_spatial_info(0, 0)
-        
+            temporal_info = get_temporal_info(None, miss_hour=miss_hour)
+            spatial_info = get_spatial_info(None)
+
         meta = torch.Tensor(temporal_info + spatial_info)
         meta.unsqueeze_(0)
         meta = meta.to(self.device)
@@ -100,4 +100,4 @@ class Inference:
         
         confidence, pred_id = torch.max(output.data, 1)
         pred_class = self.classes[pred_id.data.item()]
-        return confidence, pred_id, pred_class, result_log
+        return result_log, confidence, pred_id, pred_class
