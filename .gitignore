@@ -143,11 +143,11 @@ dmypy.json
 /nabirds
 /aircraft
 /datasets
-/images
-
-# venv
-/MetaFormerBSLvenv
 
 # vscode
 .vs/
 .vscode/
+
+# extras
+/inference_test
+/notebooks
