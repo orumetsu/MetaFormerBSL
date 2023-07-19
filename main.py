@@ -141,7 +141,7 @@ def main(config):
     if config.MODEL.PRETRAINED:
         load_pretrained(config,model_without_ddp,logger)
         if config.EVAL_MODE:
-            acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels)
+            acc1 = validate(config, data_loader_val, model, training_labels)
             logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
             return
 
@@ -160,11 +160,11 @@ def main(config):
     if config.MODEL.RESUME:
         logger.info(f"********** Normal Test **********")
         max_accuracy, scaler = load_checkpoint(config, model_without_ddp, optimizer, lr_scheduler, logger, scaler)
-        acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels)
+        acc1 = validate(config, data_loader_val, model, training_labels)
         logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
         if config.DATA.ADD_META:
             logger.info(f"********** Masked-Meta Test ***********")
-            acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels, mask_meta=True)
+            acc1 = validate(config, data_loader_val, model, training_labels, mask_meta=True)
             logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
         if config.EVAL_MODE:
             return
@@ -182,15 +182,14 @@ def main(config):
             save_checkpoint(config, epoch, model_without_ddp, max_accuracy, optimizer, lr_scheduler, logger, scaler)
         
         logger.info(f"********** Normal Test **********")
-        acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels)
+        acc1 = validate(config, data_loader_val, model, training_labels)
         logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
         max_accuracy = max(max_accuracy, acc1)
         logger.info(f'Max accuracy: {max_accuracy:.3f}%')
         if config.DATA.ADD_META:
             logger.info(f"********** Masked-Meta Test ***********")
-            acc1, acc5, loss, manyacc, midacc, lowacc = validate(config, data_loader_val, model, training_labels, mask_meta=True)
+            acc1 = validate(config, data_loader_val, model, training_labels, mask_meta=True)
             logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {acc1:.3f}%")
-#         data_loader_train.terminate()
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     logger.info('Training time: {}'.format(total_time_str))
@@ -237,13 +236,6 @@ def train_one_epoch_local_data(config, model, criterion, data_loader, optimizer,
                 outputs = model(samples, meta)
             else:
                 outputs = model(samples)
-        
-        # print("Output:", outputs)
-        # print("Output Shape:", outputs.shape)
-        # print("Target Shape:", targets)
-        # print("Target Shape:", targets.shape)
-        # print("Max Value:", torch.max(targets))
-        # print("Min Value:", torch.min(targets))
         
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             if config.AMP_OPT_LEVEL != "O0":
@@ -350,19 +342,17 @@ def validate(config, data_loader, model, training_labels, mask_meta=False):
     criterion = torch.nn.CrossEntropyLoss()
     model.eval()
 
+    # construct all AverageMeter
     batch_time = AverageMeter()
     loss_meter = AverageMeter()
-    acc1_meter = AverageMeter()
-    acc5_meter = AverageMeter()
 
-    many_acc_meter = AverageMeter()
-    median_acc_meter = AverageMeter()
-    low_acc_meter = AverageMeter()
-
-    many_shot_thr = 100
-    low_shot_thr = 20
-    print("Many-Shot Threshold:", many_shot_thr)
-    print("Low-Shot Threshold:", low_shot_thr)
+    top_k = (1, 3, 5, 10)
+    acc_dict = {}
+    for cur_k in top_k:
+        acc_dict[f"acc{cur_k}"] = AverageMeter()
+        acc_dict[f"manyacc{cur_k}"] = AverageMeter()
+        acc_dict[f"medacc{cur_k}"] = AverageMeter()
+        acc_dict[f"fewacc{cur_k}"] = AverageMeter()
 
     end = time.time()
     for idx, data in enumerate(data_loader):
@@ -386,56 +376,83 @@ def validate(config, data_loader, model, training_labels, mask_meta=False):
         else:
             output = model(images)
 
-        # measure accuracy and record loss
+        # measure and update loss
         loss = criterion(output, target)
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
-        # many-median-low shot acc
-        preds = torch.argmax(output, dim=1)
-        many_shot_acc, median_shot_acc, low_shot_acc, class_accs = shot_acc(preds, target, training_labels, acc_per_cls=True, many_shot_thr=many_shot_thr, low_shot_thr=low_shot_thr)
-
-        acc1 = reduce_tensor(acc1)
-        acc5 = reduce_tensor(acc5)
         loss = reduce_tensor(loss)
+        loss_meter.update(loss.item(), target.size(0))
 
-        # scale to percentage
-        many_shot_acc *= 100 
-        median_shot_acc *= 100 
-        low_shot_acc  *= 100
+        #measure and update top-k's
+        top_k_accs = accuracy(output, target, topk=top_k)
+        for i in range(len(top_k)):
+            cur_top_k_acc = reduce_tensor(top_k_accs[i])
+            acc_dict[f"acc{top_k[i]}"].update(cur_top_k_acc.item(), target.size(0))
 
-        # measure elapsed time
+            # many-med-few shot top-k's
+            preds = torch.topk(output, k=top_k[i], dim=1).indices
+            cur_many_shot, cur_med_shot, cur_few_shot, cur_shot_len = shot_acc(preds, target, training_labels)
+            
+            # scale to percentage
+            cur_many_shot *= 100
+            cur_med_shot *= 100
+            cur_few_shot *= 100
+
+            # many-med-few-shot update
+            if cur_many_shot >= 0.:
+                acc_dict[f"manyacc{top_k[i]}"].update(cur_many_shot, cur_shot_len[0])
+            if cur_med_shot >= 0.:
+                acc_dict[f"medacc{top_k[i]}"].update(cur_med_shot, cur_shot_len[1])
+            if cur_few_shot >= 0.:
+                acc_dict[f"fewacc{top_k[i]}"].update(cur_few_shot, cur_shot_len[2])
+
+        # update elapsed time
         batch_time.update(time.time() - end)
 
-        loss_meter.update(loss.item(), target.size(0))
-        acc1_meter.update(acc1.item(), target.size(0))
-        acc5_meter.update(acc5.item(), target.size(0))
-
-        if many_shot_acc >= 0.:
-            many_acc_meter.update(many_shot_acc, target.size(0))
-        if median_shot_acc >= 0.:
-            median_acc_meter.update(median_shot_acc, target.size(0))
-        if low_shot_acc >= 0.:
-            low_acc_meter.update(low_shot_acc, target.size(0))
-        
         if (idx + 1) % config.PRINT_FREQ == 0:
             memory_used = torch.cuda.max_memory_allocated() / (1024.0 * 1024.0)
             logger.info(
                 f'Test: [{(idx + 1)}/{len(data_loader)}]\t'
                 f'Batch Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                 f'Loss: {loss_meter.val:.4f} ({loss_meter.avg:.4f})\t'
-                f'Acc@1: {acc1_meter.val:.3f} ({acc1_meter.avg:.3f})\t'
-                f'Acc@5: {acc5_meter.val:.3f} ({acc5_meter.avg:.3f})\t'
-                f'AccMany: {many_acc_meter.val:.3f} ({many_acc_meter.avg:.3f})\t'
-                f'AccMid: {median_acc_meter.val:.3f} ({median_acc_meter.avg:.3f})\t'
-                f'AccLow: {low_acc_meter.val:.3f} ({low_acc_meter.avg:.3f})\t'
+                f'Acc@1: {acc_dict["acc1"].val:.3f} ({acc_dict["acc1"].avg:.3f}) [{acc_dict["acc1"].count}]\t'
+                f'Acc@3: {acc_dict["acc3"].val:.3f} ({acc_dict["acc3"].avg:.3f}) [{acc_dict["acc3"].count}]\t'
+                f'Acc@5: {acc_dict["acc5"].val:.3f} ({acc_dict["acc5"].avg:.3f}) [{acc_dict["acc5"].count}]\t'
+                f'Acc@10: {acc_dict["acc10"].val:.3f} ({acc_dict["acc10"].avg:.3f}) [{acc_dict["acc10"].count}]\t'
+                f'ManyAcc@1: {acc_dict["manyacc1"].val:.3f} ({acc_dict["manyacc1"].avg:.3f}) [{acc_dict["manyacc1"].count}]\t'
+                f'ManyAcc@3: {acc_dict["manyacc3"].val:.3f} ({acc_dict["manyacc3"].avg:.3f}) [{acc_dict["manyacc3"].count}]\t'
+                f'ManyAcc@5: {acc_dict["manyacc5"].val:.3f} ({acc_dict["manyacc5"].avg:.3f}) [{acc_dict["manyacc5"].count}]\t'
+                f'ManyAcc@10: {acc_dict["manyacc10"].val:.3f} ({acc_dict["manyacc10"].avg:.3f}) [{acc_dict["manyacc10"].count}]\t'
+                f'MedAcc@1: {acc_dict["medacc1"].val:.3f} ({acc_dict["medacc1"].avg:.3f}) [{acc_dict["medacc1"].count}]\t'
+                f'MedAcc@3: {acc_dict["medacc3"].val:.3f} ({acc_dict["medacc3"].avg:.3f}) [{acc_dict["medacc3"].count}]\t'
+                f'MedAcc@5: {acc_dict["medacc5"].val:.3f} ({acc_dict["medacc5"].avg:.3f}) [{acc_dict["medacc5"].count}]\t'
+                f'MedAcc@10: {acc_dict["medacc10"].val:.3f} ({acc_dict["medacc10"].avg:.3f}) [{acc_dict["medacc10"].count}]\t'
+                f'FewAcc@1: {acc_dict["fewacc1"].val:.3f} ({acc_dict["fewacc1"].avg:.3f}) [{acc_dict["fewacc1"].count}]\t'
+                f'FewAcc@3: {acc_dict["fewacc3"].val:.3f} ({acc_dict["fewacc3"].avg:.3f}) [{acc_dict["fewacc3"].count}]\t'
+                f'FewAcc@5: {acc_dict["fewacc5"].val:.3f} ({acc_dict["fewacc5"].avg:.3f}) [{acc_dict["fewacc5"].count}]\t'
+                f'FewAcc@10: {acc_dict["fewacc10"].val:.3f} ({acc_dict["fewacc10"].avg:.3f}) [{acc_dict["fewacc10"].count}]\t'
                 f'Memory: {memory_used:.0f}MB')
             
         end = time.time()
 
-    logger.info(f' -=-= Acc@1 {acc1_meter.avg:.3f} Acc@5 {acc5_meter.avg:.3f} \
-                AccMany {many_acc_meter.avg:.3f} AccMid {median_acc_meter.avg:.3f} AccLow {low_acc_meter.avg:.3f}')
+    logger.info(
+                f'Loss: ({loss_meter.avg:.4f})\t'
+                f'Acc@1: ({acc_dict["acc1"].avg:.3f}) [{acc_dict["acc1"].count}]\t'
+                f'Acc@3: ({acc_dict["acc3"].avg:.3f}) [{acc_dict["acc3"].count}]\t'
+                f'Acc@5: ({acc_dict["acc5"].avg:.3f}) [{acc_dict["acc5"].count}]\t'
+                f'Acc@10: ({acc_dict["acc10"].avg:.3f}) [{acc_dict["acc10"].count}]\t'
+                f'ManyAcc@1: ({acc_dict["manyacc1"].avg:.3f}) [{acc_dict["manyacc1"].count}]\t'
+                f'ManyAcc@3: ({acc_dict["manyacc3"].avg:.3f}) [{acc_dict["manyacc3"].count}]\t'
+                f'ManyAcc@5: ({acc_dict["manyacc5"].avg:.3f}) [{acc_dict["manyacc5"].count}]\t'
+                f'ManyAcc@10: ({acc_dict["manyacc10"].avg:.3f}) [{acc_dict["manyacc10"].count}]\t'
+                f'MedAcc@1: ({acc_dict["medacc1"].avg:.3f}) [{acc_dict["medacc1"].count}]\t'
+                f'MedAcc@3: ({acc_dict["medacc3"].avg:.3f}) [{acc_dict["medacc3"].count}]\t'
+                f'MedAcc@5: ({acc_dict["medacc5"].avg:.3f}) [{acc_dict["medacc5"].count}]\t'
+                f'MedAcc@10: ({acc_dict["medacc10"].avg:.3f}) [{acc_dict["medacc10"].count}]\t'
+                f'FewAcc@1: ({acc_dict["fewacc1"].avg:.3f}) [{acc_dict["fewacc1"].count}]\t'
+                f'FewAcc@3: ({acc_dict["fewacc3"].avg:.3f}) [{acc_dict["fewacc3"].count}]\t'
+                f'FewAcc@5: ({acc_dict["fewacc5"].avg:.3f}) [{acc_dict["fewacc5"].count}]\t'
+                f'FewAcc@10: ({acc_dict["fewacc10"].avg:.3f}) [{acc_dict["fewacc10"].count}]\t')
     
-    return acc1_meter.avg, acc5_meter.avg, loss_meter.avg, many_acc_meter.avg, median_acc_meter.avg, low_acc_meter.avg
+    return acc_dict["acc1"].avg
 
 
 @torch.no_grad()
