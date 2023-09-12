@@ -100,4 +100,4 @@ class Inference:
         
         confidence, pred_id = torch.max(output.data, 1)
         pred_class = self.classes[pred_id.data.item()]
-        return result_log, confidence, pred_id, pred_class
+        return result_log, confidence, pred_id, pred_class, output

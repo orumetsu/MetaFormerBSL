@@ -167,7 +167,8 @@ def load_ext(name, funcs):
     return ext
 
 
-# Many-Medium-Few-Shot Top-k Accuracy (from Balanced Softmax Loss) # top-k hacked by orumetsu
+# Many-Medium-Few-Shot Top-k Accuracy (from Balanced Softmax Loss)
+# top-k hacked by orumetsu
 def shot_acc(preds, labels, train_data, many_shot_thr=100, low_shot_thr=20, acc_per_cls=False):
     
     if isinstance(train_data, np.ndarray):
