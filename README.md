@@ -18,4 +18,4 @@ A modification of [MetaFormer](https://github.com/dqshuai/MetaFormer), using the
 
 
 ## Acknowledgements
-Many thanks to [MetaFormer](https://github.com/dqshuai/MetaFormer) and [Balanced Softmax Loss](https://github.com/jiawei-ren/BalancedMetaSoftmax) for most of the source code.
+Many thanks to [MetaFormer](https://github.com/dqshuai/MetaFormer) and [Balanced Softmax Loss](https://github.com/jiawei-ren/BalancedMetaSoftmax) for the base source code.
